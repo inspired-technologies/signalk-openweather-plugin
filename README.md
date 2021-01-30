@@ -1,2 +1,2 @@
 # signalk-openweather-plugin
-Plugin to inject forecast data from OpenWeather service
+SignalK Plugin to inject forecast data from <a href="https://openweathermap.org/">OpenWeather</a> public weather service
