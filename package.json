@@ -4,13 +4,15 @@
   "description": "SignalK plugin to provide data from OpenWeather Service",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "debug": "node --inspect-brk=192.168.0.97:9229 /usr/local/lib/node_modules/signalk-server/bin/signalk-server"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/inspired-technologies/signalk-openweather-plugin.git"
   },
   "keywords": [
+    "signalk",
     "signalk-node-server-plugin"
   ],
   "author": "Inspired Technologies",
@@ -18,5 +20,9 @@
   "bugs": {
     "url": "https://github.com/inspired-technologies/signalk-openweather-plugin/issues"
   },
-  "homepage": "https://github.com/inspired-technologies/signalk-openweather-plugin#readme"
+  "homepage": "https://github.com/inspired-technologies/signalk-openweather-plugin#readme",
+  "dependencies": {
+    "debug": "^4.3.1",
+    "openweather-apis": "^4.4.1"
+  }
 }
