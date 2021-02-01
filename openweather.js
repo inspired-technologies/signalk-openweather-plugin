@@ -1,13 +1,17 @@
 var owm = require ('openweather-apis')
+let log = null
 
 const navigationPosition = 'navigation.position';
-const outsideBattery = 'environment.outside.battery';
+const navigationElevation = 'navigation.gnss.antennaAltitude';
+const environmentRPi = 'environment.cpu.temperature';
 const oneMinute = 60*1000;
 const oneHour = 60*60*1000;
 
 const subscriptions = [
-    { path: navigationPosition, period: oneHour, policy: "instant", minPeriod: oneHour },
-    { path: outsideBattery, period: oneHour, policy: "instant", minPeriod: oneMinute },
+    { path: navigationPosition, period: oneHour, policy: "instant", minPeriod: oneMinute },
+    { path: navigationElevation, period: oneHour, policy: "instant", minPeriod: oneMinute },
+    // workaround required as policy "ideal" not available for navigationPosition
+    { path: environmentRPi, period: oneHour, policy: "instant", minPeriod: oneMinute },
 ];
 
 // SmartJSON 
@@ -44,14 +48,18 @@ const latest = {
     },
     full: {
         time: null,
+    },
+    altitude: {
+        elevation: 0,
     }
 }
 
 let deltaMessages = [];
 
 const subscriptionHandler = [
-    { path: navigationPosition, handle: (value) => onUpdate(value, addMessages) },
-    { path: outsideBattery, handle: (value) => onUpdate({ "latitude":latest.forecast.lat, "longitude":latest.forecast.lon }, addMessages) },
+    { path: navigationPosition, handle: (value) => onPositionUpdate(value, addMessages) },
+    { path: navigationElevation, handle: (value) => onElevationUpdate(value) },
+    { path: environmentRPi, handle: (value) => onPositionUpdate({ "latitude":latest.forecast.lat, "longitude":latest.forecast.lon }, addMessages) },
 ]
 
 function onDeltasUpdate(deltas) {
@@ -82,21 +90,23 @@ function addMessages (updates) {
     }
 } 
 
-function onUpdate(value, callback) {
-    if (value == null) throw new Error("Cannot add null value");
+function onPositionUpdate(value, callback) {
+    if (value == null) log("PositionUpdate: Cannot add null value");
 
     latest.forecast.lat = value.latitude;
     latest.forecast.lon = value.longitude;
 
-    if (!lastUpdateWithin(oneHour))
+    if (!lastUpdateWithin(oneHour) && isValidPosition(latest.forecast.lat, latest.forecast.lon))
     {
         latest.forecast.time = Date.now();
 
         owm.setCoordinate(value.latitude, value.longitude);
+        log("OWM Coordinates "+value.latitude+","+value.longitude);
         // get a simple JSON Object with temperature, humidity, pressure and description
         owm.getSmartJSON(function(err, smart){
             if (!err)
             {
+                log(smart);
                 latest.simple.temp = smart.temp
                 latest.simple.humidity = smart.humidity,
                 latest.simple.pressure = smart.pressure * 100, // getting hPa instead of Pa
@@ -106,6 +116,7 @@ function onUpdate(value, callback) {
             }
             else
             {
+                log(err);
                 latest.simple.temp = null
                 latest.simple.humidity = null,
                 latest.simple.pressure = null,
@@ -115,6 +126,19 @@ function onUpdate(value, callback) {
             }
             callback(prepareUpdate(latest.forecast, latest.simple));                
         });
+    }
+}
+
+function onElevationUpdate(value) {
+    if (value == null) 
+    {
+        log("ElevationUpdate: Cannot add null value - using 0 instead");
+        latest.altitude.elevation = 0
+    }
+    else
+    {
+        latest.altitude.elevation = value
+        log("ElevationUpdate: Elevation set to "+value+"m above sea level");
     }
 }
 
@@ -164,9 +188,17 @@ function lastUpdateWithin(interval) {
     return latest.forecast.time !== null ? (Date.now() - latest.forecast.time) <= interval : false;
 }
 
+function isValidPosition(lat, lon) {
+    return (lat!==null&&lon!==null && lat!==undefined&&lon!==undefined);
+}
+
 module.exports = {
     subscriptions,
     preLoad,
     onDeltasUpdate,
-    onDeltasPushed
+    onDeltasPushed,
+
+    init: function(loghandler) {
+        log = loghandler;
+    }
 }

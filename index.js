@@ -13,6 +13,7 @@ module.exports = function (app) {
     plugin.start = function (options, restartPlugin) {
 
         app.debug('Plugin started');
+        ow.init(log);
 
         let localSubscription = {
             context: '*',
@@ -76,6 +77,8 @@ module.exports = function (app) {
         });
         ow.onDeltasPushed();
     }
+
+    function log(msg) { app.debug(msg); }
 
     return plugin;
 };
