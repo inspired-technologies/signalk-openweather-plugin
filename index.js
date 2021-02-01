@@ -57,7 +57,7 @@ module.exports = function (app) {
           },
           offset: {
             type: 'number',
-            title: 'Forecast offset to localtime (0 = current, >0 = next full hour in <offset> hours)',
+            title: 'Forecast offset to localtime (0 = current, otherwise next full hour within <offset> hours (max. 47)',
             default: 0
           },
         }
