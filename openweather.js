@@ -179,7 +179,7 @@ function onPositionUpdate(value, callback) {
                     latest.simple.description = (offset==0 ? data.current.weather[0].description : data.hourly[offset].weather[0].description)
                     latest.forecast.icon = (offset==0 ? data.current.weather[0].icon : data.hourly[offset].weather[0].icon)
                     latest.forecast.main = (offset==0 ? data.current.weather[0].main : data.hourly[offset].weather[0].main)
-                    latest.simple.rain = (offset<=7 ? data.hourly[0].rain : {})
+                    latest.simple.rain = (data.hourly[offset].rain!==undefined ? data.hourly[0].rain : {})
                     latest.simple.weathercode = (offset==0 ? data.hourly[0].weather[0].id : data.hourly[offset].weather[0].id)
                     for (i=0; i<Math.min(data.hourly.length, 23); i++)
                     {
