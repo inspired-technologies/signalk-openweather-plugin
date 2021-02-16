@@ -52,7 +52,8 @@ Note: Alerts from openweathermap.org currently not implemented as based on <code
     uvindex: 0,
     clouds: 100,
     visibility: 10000,
-    wind: { speed: 3.47, dir: 233 } 
+    wind: { speed: 3.47, dir: 4.665 } 
   }
   </code></p>
   
+The plugin shall adhere to meta-data units accoring to the SignalK definition.
