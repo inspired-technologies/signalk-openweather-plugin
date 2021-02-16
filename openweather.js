@@ -228,6 +228,38 @@ function compensateToSeaLevel (pressure, elevation, temperature) {
     return pressure / Math.exp(-elevation / (temperature*29.263));
 }
 
+// converts to SignalK-Units
+function convertUnits(units, value) {
+    let skUnits
+    if ( units === '%' ) {
+        value = value / 100
+        skUnits = 'ratio'
+    } else if ( units === '°C' || units === 'deg' ) {
+        value = value + 273.15
+        skUnits = 'K'
+    } else if ( units === '°F' ) {
+        value = (value - 32) * (5/9) + 273.15
+        skUnits = 'K'    
+    } else if ( units === 'kmh' ) {
+        value = value / 3.6
+        skUnits = "m/s"
+    } else if ( units === '°' ) {
+        value = value * (Math.PI/180.0)
+        skUnits = 'rad'
+    } else if ( units === 'Pa' ) {
+        skUnits = "Pa"
+    } else if ( units === 'hPa' || units=== 'mbar' ) {
+        value = value / 100
+        skUnits = "Pa"
+    } else if ( units === 'km' ) {
+        value = value * 1000
+        skUnits = "m"
+    } else if ( units === 'm' ) {
+        skUnits = "m"
+    }
+    return { value, units: skUnits }
+}
+
 function onElevationUpdate(value) {
     if (value == null) 
     {
@@ -274,9 +306,25 @@ function prepareUpdate(forecast, weather, full) {
             buildDeltaUpdate(fullClouds, full.clouds !== null ? full.clouds : noData),
             buildDeltaUpdate(fullVisibility, full.visibility !== null ? full.visibility : noData),                       
             buildDeltaUpdate(fullWindSpeed, full.wind.speed !== null ? full.wind.speed : noData),
-            buildDeltaUpdate(fullWinDir, full.wind.dir !== null ? full.wind.dir : noData),                       
+            buildDeltaUpdate(fullWinDir, full.wind.dir !== null ? convertUnits('°', full.wind.dir).value : noData),                       
             buildDeltaUpdate(simpleRain, weather.rain !== null ? weather.rain : noData),
             buildDeltaUpdate(simpleWeatherCode, weather.weathercode !== null ? weather.weathercode : noData)
+        ];
+        case 'meta-simple': return [
+            buildDeltaUpdate(simpleTemp, { units: "K" }),
+            buildDeltaUpdate(simpleHumidity, { units: "ratio" }),
+            buildDeltaUpdate(simplePressure, { units: "Pa" })
+        ];
+        case 'meta-full': return [
+            buildDeltaUpdate(simpleTemp, { units: "K" }),
+            buildDeltaUpdate(fullTempMin, { units: "K" }),
+            buildDeltaUpdate(fullTempMax, { units: "K" }),
+            buildDeltaUpdate(fullFeelsLike, { units: "K" }),
+            buildDeltaUpdate(simpleHumidity, { units: "ratio" }),
+            buildDeltaUpdate(simplePressure, { units: "Pa" }),
+            buildDeltaUpdate(fullDewPoint, { units: "K" }),
+            buildDeltaUpdate(fullWindSpeed, { units: "m/s" }),
+            buildDeltaUpdate(fullWinDir, { units: "rad" })
         ];
         default:
             return [];
@@ -314,7 +362,15 @@ function preLoad(lat, lon, apikey, configtype, configoffset) {
 	// check http://openweathermap.org/appid#get for get the APPID
     owm.setAPPID(apikey); 
     // return empty data set
-    return prepareUpdate(latest.forecast, latest.simple, latest.full);
+    let initial = prepareUpdate(latest.forecast, latest.simple, latest.full);
+    let meta = null
+    // add units to updates
+    if (initial) {
+        type = 'meta-'+type
+        meta = prepareUpdate(null, null, null);
+        type = type.replace('meta-', '')        
+    }
+    return { "update": initial, "meta": meta }
 }
 
 function lastUpdateWithin(interval) {

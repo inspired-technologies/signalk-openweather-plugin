@@ -29,7 +29,13 @@ module.exports = function (app) {
             delta => sendDelta(ow.onDeltasUpdate(delta))
         );
 
-        sendDelta(ow.preLoad(null, null, options["apikey"], options["type"], options["offset"]));
+        let delta = ow.preLoad(null, null, options["apikey"], options["type"], options["offset"])
+        if (delta)
+        {
+            sendDelta(delta.update)
+            sendMeta(delta.meta)
+        }
+
     };
 
     plugin.stop = function () {
@@ -76,6 +82,16 @@ module.exports = function (app) {
             ]
         });
         ow.onDeltasPushed();
+    }
+
+    function sendMeta(units) {
+        app.handleMessage('openweather-signalk', {
+            updates: [
+                {
+                    meta: units
+                }
+            ]   
+        })
     }
 
     function log(msg) { app.debug(msg); }
