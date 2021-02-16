@@ -56,4 +56,4 @@ Note: Alerts from openweathermap.org currently not implemented as based on <code
   }
   </code></p>
   
-The plugin shall adhere to meta-data units accoring to the SignalK definition.
+The plugin shall adhere to meta-data units according to the SignalK definition.
