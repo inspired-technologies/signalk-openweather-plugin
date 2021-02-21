@@ -1,0 +1,61 @@
+# NPM Release
+name: npm-release
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches: [ main ]
+
+jobs:
+  publish:
+    name: Check release to NPM
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Check if version has been updated
+        id: check
+        uses: EndBug/version-check@v1
+        with:
+          file-url: https://unpkg.com/openweather-signalk@latest/package.json
+          static-checking: localIsNew
+
+      - name: Log when unchanged
+        if: steps.check.outputs.changed == 'false'
+        run: 'echo "Non release change"'
+
+      - name: Log when changed
+        if: steps.check.outputs.changed == 'true'
+        run: 'echo "Version changed commit ${{ steps.check.outputs.commit }}! New version: ${{ steps.check.outputs.version }} (${{ steps.check.outputs.type }})"'
+        
+      - name: Create Release
+        if: steps.check.outputs.changed == 'true'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ steps.check.outputs.version }}
+          release_name: Release ${{ steps.check.outputs.version }} (${{ steps.check.outputs.type }})
+          body: |
+            New release to NPM
+            - Tagged to ${{ steps.check.outputs.version }}
+            - Release ${{ steps.check.outputs.version }} (${{ steps.check.outputs.type }})
+          draft: false
+          prerelease: false
+          
+      - name: Setup Node
+        if: steps.check.outputs.changed == 'true'
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14
+          registry-url: https://registry.npmjs.org/
+      - name: Install Package 
+        if: steps.check.outputs.changed == 'true'
+        run: yarn install
+      - name: Publish Package 
+        if: steps.check.outputs.changed == 'true'
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.NPM_AUTH_TOKEN}}
