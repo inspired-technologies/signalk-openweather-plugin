@@ -257,7 +257,7 @@ function convertUnits(units, value) {
     } else if ( units === 'm' ) {
         skUnits = "m"
     }
-    return { value, units: skUnits }
+    return { value: value, units: skUnits }
 }
 
 function onElevationUpdate(value) {
@@ -266,7 +266,7 @@ function onElevationUpdate(value) {
         log("Cannot add null value as elevation - using 0 instead");
         latest.altitude.elevation = 0
     }
-    else
+    else if (value!=="waiting ...")
     {
         latest.altitude.elevation = value
         log("Elevation set to "+value+"m above sea level");
