@@ -281,7 +281,7 @@ function prepareUpdate(forecast, weather, full) {
 
             buildDeltaUpdate(simpleDescription, weather.description !== null ? weather.description : noData),
             buildDeltaUpdate(simpleTemp, weather.temp !== null ? weather.temp : noData),
-            buildDeltaUpdate(simpleHumidity, weather.humidity !== null ? weather.humidity : noData),
+            buildDeltaUpdate(simpleHumidity, weather.humidity !== null ? convertUnits('%', weather.humidity).value : noData),
             buildDeltaUpdate(simplePressure, weather.pressure !== null ? weather.pressure : noData),
             buildDeltaUpdate(simpleRain, weather.rain !== null ? weather.rain : noData),
             buildDeltaUpdate(simpleWeatherCode, weather.weathercode !== null ? weather.weathercode : noData)
@@ -300,7 +300,7 @@ function prepareUpdate(forecast, weather, full) {
             buildDeltaUpdate(fullTempMax, full.temp.max !== null ? full.temp.max : noData),
             buildDeltaUpdate(fullFeelsLike, full.feelslike !== null ? full.feelslike : noData),
             buildDeltaUpdate(simplePressure, weather.pressure !== null ? weather.pressure : noData),
-            buildDeltaUpdate(simpleHumidity, weather.humidity !== null ? weather.humidity : noData),
+            buildDeltaUpdate(simpleHumidity, weather.humidity !== null ? convertUnits('%', weather.humidity).value  : noData),
             buildDeltaUpdate(fullDewPoint, full.dewpoint !== null ? full.dewpoint : noData),
             buildDeltaUpdate(fullUVIndex, full.uvindex !== null ? full.uvindex : noData),
             buildDeltaUpdate(fullClouds, full.clouds !== null ? full.clouds : noData),
