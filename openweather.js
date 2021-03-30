@@ -256,6 +256,9 @@ function convertUnits(units, value) {
         skUnits = "m"
     } else if ( units === 'm' ) {
         skUnits = "m"
+    } else if ( units === 'unixdate' ) {
+        value = new Date(value * 1000).toISOString()
+        skUnits = ""
     }
     return { value: value, units: skUnits }
 }
@@ -287,9 +290,9 @@ function prepareUpdate(forecast, weather, full) {
             buildDeltaUpdate(simpleWeatherCode, weather.weathercode !== null ? weather.weathercode : noData)
         ];
         case 'full': return [
-            buildDeltaUpdate(forecastTime, forecast.time !== null ? forecast.time : noData),
-            buildDeltaUpdate(forecastSunrise, forecast.sunrise !== null ? forecast.sunrise : noData),
-            buildDeltaUpdate(forecastSunset, forecast.sunset !== null ? forecast.sunset : noData),
+            buildDeltaUpdate(forecastTime, forecast.time !== null ? convertUnits('unixdate', forecast.time).value : noData),
+            buildDeltaUpdate(forecastSunrise, forecast.sunrise !== null ? convertUnits('unixdate', forecast.sunrise).value : noData),
+            buildDeltaUpdate(forecastSunset, forecast.sunset !== null ? convertUnits('unixdate', forecast.sunset).value : noData),
 
             buildDeltaUpdate(simpleDescription, weather.description !== null ? weather.description : noData),
             buildDeltaUpdate(fullIcon, forecast.icon !== null ? forecast.icon : noData),
