@@ -1,4 +1,6 @@
+
 var owm = require ('openweather-apis')
+let convert = require ('./skunits')
 let log = null
 let type = 'simple'
 let offset = 0
@@ -137,7 +139,7 @@ function onPositionUpdate(value, callback) {
                     latest.forecast.time = latest.update/1000 // getting ms instead of s
                     latest.simple.temp = smart.temp
                     latest.simple.humidity = smart.humidity
-                    latest.simple.pressure = compensateToStationAltitude(smart.pressure * 100, latest.altitude.elevation, smart.temp) // getting hPa instead of Pa
+                    latest.simple.pressure = convert.toStationAltitude(smart.pressure * 100, latest.altitude.elevation, smart.temp) // getting hPa instead of Pa
                     latest.simple.description = smart.description
                     latest.simple.rain = smart.rain
                     latest.simple.weathercode = smart.weathercode
@@ -167,7 +169,7 @@ function onPositionUpdate(value, callback) {
                     latest.forecast.time = (offset==0 ? data.current.dt : data.hourly[offset].dt) 
                     latest.simple.temp = (offset==0 ? data.current.temp : data.hourly[offset].temp)
                     latest.full.feelslike = (offset==0 ? data.current.feels_like : data.hourly[offset].feels_like)
-                    latest.simple.pressure = compensateToStationAltitude((offset==0 ? data.current.pressure : data.hourly[offset].pressure) * 100, 
+                    latest.simple.pressure = convert.toStationAltitude((offset==0 ? data.current.pressure : data.hourly[offset].pressure) * 100, 
                         latest.altitude.elevation, latest.simple.temp), // getting hPa instead of Pa
                     latest.simple.humidity = (offset==0 ? data.current.humidity : data.hourly[offset].humidity)
                     latest.full.dewpoint = (offset==0 ? data.current.dew_point : data.hourly[offset].dew_point)
@@ -218,48 +220,6 @@ function onPositionUpdate(value, callback) {
     }
 }
 
-// returns Pressure at Station based on Pressure at SeaLevel, Elevation (m) and Temperature (K) at Station 
-function compensateToStationAltitude (pressure, elevation, temperature) {
-    return pressure * Math.exp(-elevation / (temperature*29.263));
-}
-
-// returns Pressure at SeaLevel based on Pressure at Station, Elevation (m) and Temperature (K) at Station 
-function compensateToSeaLevel (pressure, elevation, temperature) {
-    return pressure / Math.exp(-elevation / (temperature*29.263));
-}
-
-// converts to SignalK-Units
-function convertUnits(units, value) {
-    let skUnits
-    if ( units === '%' ) {
-        value = value / 100
-        skUnits = 'ratio'
-    } else if ( units === '°C' || units === 'deg' ) {
-        value = value + 273.15
-        skUnits = 'K'
-    } else if ( units === '°F' ) {
-        value = (value - 32) * (5/9) + 273.15
-        skUnits = 'K'    
-    } else if ( units === 'kmh' ) {
-        value = value / 3.6
-        skUnits = "m/s"
-    } else if ( units === '°' ) {
-        value = value * (Math.PI/180.0)
-        skUnits = 'rad'
-    } else if ( units === 'Pa' ) {
-        skUnits = "Pa"
-    } else if ( units === 'hPa' || units=== 'mbar' ) {
-        value = value / 100
-        skUnits = "Pa"
-    } else if ( units === 'km' ) {
-        value = value * 1000
-        skUnits = "m"
-    } else if ( units === 'm' ) {
-        skUnits = "m"
-    }
-    return { value: value, units: skUnits }
-}
-
 function onElevationUpdate(value) {
     if (value == null) 
     {
@@ -281,15 +241,15 @@ function prepareUpdate(forecast, weather, full) {
 
             buildDeltaUpdate(simpleDescription, weather.description !== null ? weather.description : noData),
             buildDeltaUpdate(simpleTemp, weather.temp !== null ? weather.temp : noData),
-            buildDeltaUpdate(simpleHumidity, weather.humidity !== null ? convertUnits('%', weather.humidity).value : noData),
+            buildDeltaUpdate(simpleHumidity, weather.humidity !== null ? convert.toSignalK('%', weather.humidity).value : noData),
             buildDeltaUpdate(simplePressure, weather.pressure !== null ? weather.pressure : noData),
             buildDeltaUpdate(simpleRain, weather.rain !== null ? weather.rain : noData),
             buildDeltaUpdate(simpleWeatherCode, weather.weathercode !== null ? weather.weathercode : noData)
         ];
         case 'full': return [
-            buildDeltaUpdate(forecastTime, forecast.time !== null ? forecast.time : noData),
-            buildDeltaUpdate(forecastSunrise, forecast.sunrise !== null ? forecast.sunrise : noData),
-            buildDeltaUpdate(forecastSunset, forecast.sunset !== null ? forecast.sunset : noData),
+            buildDeltaUpdate(forecastTime, forecast.time !== null ? convert.toSignalK('unixdate', forecast.time).value : noData),
+            buildDeltaUpdate(forecastSunrise, forecast.sunrise !== null ? convert.toSignalK('unixdate', forecast.sunrise).value : noData),
+            buildDeltaUpdate(forecastSunset, forecast.sunset !== null ? convert.toSignalK('unixdate', forecast.sunset).value : noData),
 
             buildDeltaUpdate(simpleDescription, weather.description !== null ? weather.description : noData),
             buildDeltaUpdate(fullIcon, forecast.icon !== null ? forecast.icon : noData),
@@ -300,13 +260,13 @@ function prepareUpdate(forecast, weather, full) {
             buildDeltaUpdate(fullTempMax, full.temp.max !== null ? full.temp.max : noData),
             buildDeltaUpdate(fullFeelsLike, full.feelslike !== null ? full.feelslike : noData),
             buildDeltaUpdate(simplePressure, weather.pressure !== null ? weather.pressure : noData),
-            buildDeltaUpdate(simpleHumidity, weather.humidity !== null ? convertUnits('%', weather.humidity).value  : noData),
+            buildDeltaUpdate(simpleHumidity, weather.humidity !== null ? convert.toSignalK('%', weather.humidity).value  : noData),
             buildDeltaUpdate(fullDewPoint, full.dewpoint !== null ? full.dewpoint : noData),
             buildDeltaUpdate(fullUVIndex, full.uvindex !== null ? full.uvindex : noData),
             buildDeltaUpdate(fullClouds, full.clouds !== null ? full.clouds : noData),
             buildDeltaUpdate(fullVisibility, full.visibility !== null ? full.visibility : noData),                       
             buildDeltaUpdate(fullWindSpeed, full.wind.speed !== null ? full.wind.speed : noData),
-            buildDeltaUpdate(fullWinDir, full.wind.dir !== null ? convertUnits('°', full.wind.dir).value : noData),                       
+            buildDeltaUpdate(fullWinDir, full.wind.dir !== null ? convert.toSignalK('°', full.wind.dir).value : noData),                       
             buildDeltaUpdate(simpleRain, weather.rain !== null ? weather.rain : noData),
             buildDeltaUpdate(simpleWeatherCode, weather.weathercode !== null ? weather.weathercode : noData)
         ];

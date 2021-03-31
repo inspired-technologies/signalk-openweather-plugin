@@ -16,7 +16,7 @@ module.exports = function (app) {
         ow.init(log);
 
         let localSubscription = {
-            context: '*',
+            context: 'vessels.self',
             subscribe: ow.subscriptions
         };
 

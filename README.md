@@ -18,7 +18,7 @@ Note: Alerts from openweathermap.org currently not implemented as based on <code
 <code> 
 { 
     temp: 277.99,
-    humidity: 86,
+    humidity: 0.86,
     pressure: 93666.52473007084,
     description: 'overcast clouds',
     rain: {},
@@ -29,16 +29,16 @@ Note: Alerts from openweathermap.org currently not implemented as based on <code
   { 
   forecast:
   { 
-    time: 1612224000,
-    sunrise: 1612161706,
-    sunset: 1612195960,
+    time: "2021-03-31T23:00:00.000Z",
+    sunrise: "2021-03-31T04:53:45.000Z",
+    sunset: "2021-03-31T17:41:35.000Z",
     main: 'Clouds',
     icon: '04n' 
   },
   simple:
   { 
     temp: 278.3,
-    humidity: 91,
+    humidity: 0.91,
     pressure: 93117.90832440622,
     description: 'overcast clouds',
     rain: { '1h': 0.26 },
@@ -57,3 +57,4 @@ Note: Alerts from openweathermap.org currently not implemented as based on <code
   </code></p>
   
 The plugin shall adhere to meta-data units according to the SignalK definition.
+Note (v0.5): To comply with the SignalK spec timestamps are provided according to RFC3339.
