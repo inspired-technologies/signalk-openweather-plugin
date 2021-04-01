@@ -237,7 +237,7 @@ function prepareUpdate(forecast, weather, full) {
     const noData = "waiting ..."
     switch (type) {
         case 'simple': return [
-            buildDeltaUpdate(forecastTime, forecast.time !== null ? forecast.time : noData),
+            buildDeltaUpdate(forecastTime, forecast.time !== null ? convert.toSignalK('unixdate', forecast.time).value : noData),
 
             buildDeltaUpdate(simpleDescription, weather.description !== null ? weather.description : noData),
             buildDeltaUpdate(simpleTemp, weather.temp !== null ? weather.temp : noData),
