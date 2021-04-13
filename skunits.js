@@ -126,7 +126,7 @@ function toTarget(skunit, value, target, precision) {
         unit = '°'
     } else if ( skunit === 'Pa' && (target===undefined) ) {
         unit = 'Pa'
-    } else if ( skunit === 'Pa' && (target==='hPa' || units==='mbar' ) ) {
+    } else if ( skunit === 'Pa' && (target==='hPa' || target==='mbar' ) ) {
         value = value / 100
         unit = target
     } else if ( skunit === 'Pa' && (target ==='atm') ) {
@@ -149,6 +149,8 @@ function toTarget(skunit, value, target, precision) {
     } else {
         unit = skunit
     }
+    if (typeof precision==='number')
+        value = value.toFixed(precision)
     return { value: value, units: unit }
 }
 

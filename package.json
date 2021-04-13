@@ -13,7 +13,8 @@
   },
   "keywords": [
     "signalk",
-    "signalk-node-server-plugin"
+    "signalk-node-server-plugin",
+    "signalk-category-weather"
   ],
   "author": "Inspired Technologies",
   "license": "MIT",

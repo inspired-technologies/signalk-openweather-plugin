@@ -235,16 +235,17 @@ function onElevationUpdate(value) {
 
 function prepareUpdate(forecast, weather, full) {
     const noData = "waiting ..."
+    const noVal = null
     switch (type) {
         case 'simple': return [
             buildDeltaUpdate(forecastTime, forecast.time !== null ? convert.toSignalK('unixdate', forecast.time).value : noData),
 
             buildDeltaUpdate(simpleDescription, weather.description !== null ? weather.description : noData),
-            buildDeltaUpdate(simpleTemp, weather.temp !== null ? weather.temp : noData),
-            buildDeltaUpdate(simpleHumidity, weather.humidity !== null ? convert.toSignalK('%', weather.humidity).value : noData),
-            buildDeltaUpdate(simplePressure, weather.pressure !== null ? weather.pressure : noData),
-            buildDeltaUpdate(simpleRain, weather.rain !== null ? weather.rain : noData),
-            buildDeltaUpdate(simpleWeatherCode, weather.weathercode !== null ? weather.weathercode : noData)
+            buildDeltaUpdate(simpleTemp, weather.temp !== null ? weather.temp : noVal),
+            buildDeltaUpdate(simpleHumidity, weather.humidity !== null ? convert.toSignalK('%', weather.humidity).value : noVal),
+            buildDeltaUpdate(simplePressure, weather.pressure !== null ? weather.pressure : noVal),
+            buildDeltaUpdate(simpleRain, weather.rain !== null ? weather.rain : {}),
+            buildDeltaUpdate(simpleWeatherCode, weather.weathercode !== null ? weather.weathercode : noVal)
         ];
         case 'full': return [
             buildDeltaUpdate(forecastTime, forecast.time !== null ? convert.toSignalK('unixdate', forecast.time).value : noData),
@@ -252,23 +253,23 @@ function prepareUpdate(forecast, weather, full) {
             buildDeltaUpdate(forecastSunset, forecast.sunset !== null ? convert.toSignalK('unixdate', forecast.sunset).value : noData),
 
             buildDeltaUpdate(simpleDescription, weather.description !== null ? weather.description : noData),
-            buildDeltaUpdate(fullIcon, forecast.icon !== null ? forecast.icon : noData),
-            buildDeltaUpdate(fullMain, forecast.main !== null ? forecast.main : noData),
+            buildDeltaUpdate(fullIcon, forecast.icon !== null ? forecast.icon : noVal),
+            buildDeltaUpdate(fullMain, forecast.main !== null ? forecast.main : noVal),
 
-            buildDeltaUpdate(simpleTemp, weather.temp !== null ? weather.temp : noData),
-            buildDeltaUpdate(fullTempMin, full.temp.min !== null ? full.temp.min : noData),
-            buildDeltaUpdate(fullTempMax, full.temp.max !== null ? full.temp.max : noData),
-            buildDeltaUpdate(fullFeelsLike, full.feelslike !== null ? full.feelslike : noData),
-            buildDeltaUpdate(simplePressure, weather.pressure !== null ? weather.pressure : noData),
-            buildDeltaUpdate(simpleHumidity, weather.humidity !== null ? convert.toSignalK('%', weather.humidity).value  : noData),
-            buildDeltaUpdate(fullDewPoint, full.dewpoint !== null ? full.dewpoint : noData),
-            buildDeltaUpdate(fullUVIndex, full.uvindex !== null ? full.uvindex : noData),
-            buildDeltaUpdate(fullClouds, full.clouds !== null ? full.clouds : noData),
-            buildDeltaUpdate(fullVisibility, full.visibility !== null ? full.visibility : noData),                       
-            buildDeltaUpdate(fullWindSpeed, full.wind.speed !== null ? full.wind.speed : noData),
-            buildDeltaUpdate(fullWinDir, full.wind.dir !== null ? convert.toSignalK('°', full.wind.dir).value : noData),                       
-            buildDeltaUpdate(simpleRain, weather.rain !== null ? weather.rain : noData),
-            buildDeltaUpdate(simpleWeatherCode, weather.weathercode !== null ? weather.weathercode : noData)
+            buildDeltaUpdate(simpleTemp, weather.temp !== null ? weather.temp : noVal),
+            buildDeltaUpdate(fullTempMin, full.temp.min !== null ? full.temp.min : noVal),
+            buildDeltaUpdate(fullTempMax, full.temp.max !== null ? full.temp.max : noVal),
+            buildDeltaUpdate(fullFeelsLike, full.feelslike !== null ? full.feelslike : noVal),
+            buildDeltaUpdate(simplePressure, weather.pressure !== null ? weather.pressure : noVal),
+            buildDeltaUpdate(simpleHumidity, weather.humidity !== null ? convert.toSignalK('%', weather.humidity).value  : noVal),
+            buildDeltaUpdate(fullDewPoint, full.dewpoint !== null ? full.dewpoint : noVal),
+            buildDeltaUpdate(fullUVIndex, full.uvindex !== null ? full.uvindex : noVal),
+            buildDeltaUpdate(fullClouds, full.clouds !== null ? full.clouds : noVal),
+            buildDeltaUpdate(fullVisibility, full.visibility !== null ? full.visibility : noVal),                       
+            buildDeltaUpdate(fullWindSpeed, full.wind.speed !== null ? full.wind.speed : noVal),
+            buildDeltaUpdate(fullWinDir, full.wind.dir !== null ? convert.toSignalK('°', full.wind.dir).value : noVal),                       
+            buildDeltaUpdate(simpleRain, weather.rain !== null ? weather.rain : {}),
+            buildDeltaUpdate(simpleWeatherCode, weather.weathercode !== null ? weather.weathercode : noVal)
         ];
         case 'meta-simple': return [
             buildDeltaUpdate(simpleTemp, { units: "K" }),
