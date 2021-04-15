@@ -1,6 +1,6 @@
 {
   "name": "openweather-signalk",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "SignalK plugin to provide data from OpenWeather Service",
   "main": "index.js",
   "scripts": {
