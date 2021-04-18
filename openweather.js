@@ -10,12 +10,13 @@ const navigationElevation = 'navigation.gnss.antennaAltitude';
 const environmentRPi = 'environment.cpu.temperature';
 const oneMinute = 60*1000;
 const oneHour = 60*60*1000;
+const refreshRate = oneHour;
 
 const subscriptions = [
-    { path: navigationPosition, period: oneHour, policy: "instant", minPeriod: oneHour },
-    { path: navigationElevation, period: oneHour, policy: "instant", minPeriod: oneMinute },
+    { path: navigationPosition, period: refreshRate, policy: "instant", minPeriod: refreshRate },
+    { path: navigationElevation, period: refreshRate, policy: "instant", minPeriod: oneMinute },
     // workaround required as policy "ideal" not available for navigationPosition
-    { path: environmentRPi, period: oneHour, policy: "instant", minPeriod: oneMinute },
+    { path: environmentRPi, period: refreshRate, policy: "instant", minPeriod: oneMinute },
 ];
 
 // SmartJSON 
@@ -124,7 +125,7 @@ function onPositionUpdate(value, callback) {
     latest.forecast.lat = value.latitude;
     latest.forecast.lon = value.longitude;
 
-    if (!lastUpdateWithin(oneHour) && isValidPosition(latest.forecast.lat, latest.forecast.lon))
+    if (!lastUpdateWithin(refreshRate) && isValidPosition(latest.forecast.lat, latest.forecast.lon))
     {
         latest.update = Date.now();
 
@@ -274,7 +275,11 @@ function prepareUpdate(forecast, weather, full) {
         case 'meta-simple': return [
             buildDeltaUpdate(simpleTemp, { units: "K" }),
             buildDeltaUpdate(simpleHumidity, { units: "ratio" }),
-            buildDeltaUpdate(simplePressure, { units: "Pa" })
+            buildDeltaUpdate(simplePressure, { units: "Pa" }),
+            buildDeltaUpdate(forecastTime, {}),
+            buildDeltaUpdate(simpleDescription, {}),
+            buildDeltaUpdate(simpleRain, {}),
+            buildDeltaUpdate(simpleWeatherCode, {})
         ];
         case 'meta-full': return [
             buildDeltaUpdate(simpleTemp, { units: "K" }),
@@ -285,7 +290,18 @@ function prepareUpdate(forecast, weather, full) {
             buildDeltaUpdate(simplePressure, { units: "Pa" }),
             buildDeltaUpdate(fullDewPoint, { units: "K" }),
             buildDeltaUpdate(fullWindSpeed, { units: "m/s" }),
-            buildDeltaUpdate(fullWinDir, { units: "rad" })
+            buildDeltaUpdate(fullWinDir, { units: "rad" }),
+            buildDeltaUpdate(forecastTime, {}),
+            buildDeltaUpdate(forecastSunrise, {}),
+            buildDeltaUpdate(forecastSunset, {}),
+            buildDeltaUpdate(simpleDescription, {}),
+            buildDeltaUpdate(fullIcon, {}),
+            buildDeltaUpdate(fullMain, {}),
+            buildDeltaUpdate(fullUVIndex, {}),
+            buildDeltaUpdate(fullClouds, {}),
+            buildDeltaUpdate(fullVisibility, {}),
+            buildDeltaUpdate(simpleRain, {}),
+            buildDeltaUpdate(simpleWeatherCode, {})
         ];
         default:
             return [];
@@ -293,6 +309,7 @@ function prepareUpdate(forecast, weather, full) {
 }
 
 function buildDeltaUpdate(path, value) {
+    if (type.startsWith("meta-") && value !== null) value.timeout = refreshRate/1000;
     return {
         path: path,
         value: value
