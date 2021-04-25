@@ -28,6 +28,7 @@ const subscriptions = [
     rain: 4,
     weathercode : 200 
 */
+const currentTempPath = "environment.outside.temperature";
 const pathPrefix = "environment.forecast.";
 const forecastTime = pathPrefix+"time";
 const forecastSunrise = pathPrefix+"time.sunrise";
@@ -52,6 +53,7 @@ const fullWinDir = pathPrefix+'wind.direction';
 
 const latest = {
     update: null,
+    currentTemp: null,
     forecast: {
         time: null,
         lat: null,
@@ -131,6 +133,16 @@ function onPositionUpdate(value, callback) {
 
         owm.setCoordinate(value.latitude, value.longitude);
         log("OWM Coordinates "+value.latitude+","+value.longitude);
+
+        // get the Temperature  
+	    owm.getTemperature(function(err, temp){
+		    if (!err)
+            {
+                console.log('Current temperature:'+ temp);
+                latest.currentTemp = temp;
+            }
+	    });
+
         if (type==='simple' && offset==0) {
             // get a simple JSON Object with temperature, humidity, pressure and description
             owm.getSmartJSON(function(err, smart){
@@ -239,6 +251,7 @@ function prepareUpdate(forecast, weather, full) {
     const noVal = null              // sending null until data is available
     switch (type) {
         case 'simple': return [
+            buildDeltaUpdate(currentTempPath, latest.currentTemp),
             buildDeltaUpdate(forecastTime, forecast.time !== null ? convert.toSignalK('unixdate', forecast.time).value : noVal),
 
             buildDeltaUpdate(simpleDescription, weather.description !== null ? weather.description : noData),
@@ -249,6 +262,7 @@ function prepareUpdate(forecast, weather, full) {
             buildDeltaUpdate(simpleWeatherCode, weather.weathercode)
         ];
         case 'full': return [
+            buildDeltaUpdate(currentTempPath, latest.currentTemp),
             buildDeltaUpdate(forecastTime, forecast.time !== null ? convert.toSignalK('unixdate', forecast.time).value : noVal),
             buildDeltaUpdate(forecastSunrise, forecast.sunrise !== null ? convert.toSignalK('unixdate', forecast.sunrise).value : noVal),
             buildDeltaUpdate(forecastSunset, forecast.sunset !== null ? convert.toSignalK('unixdate', forecast.sunset).value : noVal),
@@ -273,6 +287,7 @@ function prepareUpdate(forecast, weather, full) {
             buildDeltaUpdate(simpleWeatherCode, weather.weathercode)
         ];
         case 'meta-simple': return [
+            buildDeltaUpdate(currentTempPath, latest.currentTemp),
             buildDeltaUpdate(simpleTemp, { units: "K" }),
             buildDeltaUpdate(simpleHumidity, { units: "ratio" }),
             buildDeltaUpdate(simplePressure, { units: "Pa" }),
