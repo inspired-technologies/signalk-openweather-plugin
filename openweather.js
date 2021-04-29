@@ -138,7 +138,7 @@ function onPositionUpdate(value, callback) {
 	    owm.getTemperature(function(err, temp){
 		    if (!err)
             {
-                console.log('Current temperature:'+ temp);
+                log('Current temperature:'+ temp);
                 latest.currentTemp = temp;
             }
 	    });
