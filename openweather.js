@@ -287,7 +287,7 @@ function prepareUpdate(forecast, weather, full) {
             buildDeltaUpdate(simpleWeatherCode, weather.weathercode)
         ];
         case 'meta-simple': return [
-            buildDeltaUpdate(currentTempPath, latest.currentTemp),
+            buildDeltaUpdate(currentTempPath, { units: "K" }),
             buildDeltaUpdate(simpleTemp, { units: "K" }),
             buildDeltaUpdate(simpleHumidity, { units: "ratio" }),
             buildDeltaUpdate(simplePressure, { units: "Pa" }),
@@ -297,7 +297,8 @@ function prepareUpdate(forecast, weather, full) {
             buildDeltaUpdate(simpleWeatherCode, {})
         ];
         case 'meta-full': return [
-            buildDeltaUpdate(simpleTemp, { units: "K" }),
+            buildDeltaUpdate(currentTempPath, { units: "K" }),
+	    buildDeltaUpdate(simpleTemp, { units: "K" }),
             buildDeltaUpdate(fullTempMin, { units: "K" }),
             buildDeltaUpdate(fullTempMax, { units: "K" }),
             buildDeltaUpdate(fullFeelsLike, { units: "K" }),
