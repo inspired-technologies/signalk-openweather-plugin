@@ -151,6 +151,7 @@ function onPositionUpdate(value, callback) {
                     log(smart);
                     latest.forecast.time = latest.update/1000 // getting ms instead of s
                     latest.simple.temp = smart.temp
+		    latest.currentTemp = smart.temp
                     latest.simple.humidity = smart.humidity
                     latest.simple.pressure = convert.toStationAltitude(smart.pressure * 100, latest.altitude.elevation, smart.temp) // getting hPa instead of Pa
                     latest.simple.description = smart.description
