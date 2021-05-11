@@ -97,10 +97,27 @@ function toSignalK(units, value) {
 // converts from SignalK-Units
 function toTarget(skunit, value, target, precision) {
     let unit
-    if ( skunit === 'ratio' && target===undefined ) {
-        value = value * 100
-        unit = ''
+    if ( target==='geoJson' || target==='latLng' ) {
+        let geo = []
+        if (value.longitude && value.latitude && target==='geoJson') {
+            geo.push(typeof precision==='number' ? value.longitude.toFixed(precision) : value.longitude)    
+            geo.push(typeof precision==='number' ? value.latitude.toFixed(precision) : value.latitude)
+            if (value.altitude) geo.push(value.altitude) 
+            value = geo
+        } else if (value.longitude && value.latitude && target==='latLng') {
+            geo.push(typeof precision==='number' ? value.latitude.toFixed(precision) : value.latitude)
+            geo.push(typeof precision==='number' ? value.longitude.toFixed(precision) : value.longitude)    
+            if (value.altitude) geo.push(value.altitude) 
+            value = geo
+        }   
+        else
+            value = null
+        unit = target
+    } else if ( skunit === 'ratio' && ( target===undefined || target==='%' ) ) {
+        value = value * 100.0
+        unit = target===undefined ? '' : '%'
     } else if ( skunit === 'ratio' && ( target==='decimal' || target==='number' ) ) {
+        value = value * 1.0
         unit = ''
     } else if ( skunit === 'K' && (target===undefined) ) {
         value = value
@@ -136,7 +153,8 @@ function toTarget(skunit, value, target, precision) {
     } else if ( skunit === 'Pa' && (target ==='atm') ) {
         value = value / 101325
         unit = target        
-    } else if ( skunit === 'm' && target === undefined ) {
+    } else if ( skunit === 'm' && (target ==='m' || target === undefined) ) {
+        value = value * 1.0
         unit = 'm'
     } else if ( skunit === 'm' && target === 'km' ) {
         value = value / 1000
@@ -153,16 +171,26 @@ function toTarget(skunit, value, target, precision) {
     } else {
         unit = skunit
     }
-    if (typeof precision==='number')
+    if (target!=='geoJson' && typeof precision==='number')
         value = value.toFixed(precision)
     return { value: value, units: unit }
 }
+
+function toDegreesMinutesAndSeconds(coordinate) {
+    var absolute = Math.abs(coordinate);
+    var degrees = Math.floor(absolute);
+    var minutesNotTruncated = (absolute - degrees) * 60;
+    var minutes = Math.floor(minutesNotTruncated);
+    var seconds = Math.floor((minutesNotTruncated - minutes) * 60);
+    return degrees + "\°" + minutes + "\'" + seconds +"\"";
+  }
 
 module.exports = {
     toBeaufort,
     fromBeaufort,
     toSeaLevel,
     toStationAltitude,
+    toDegreesMinutesAndSeconds,
     toSignalK,
     toTarget
-}     
+}
