@@ -27,7 +27,7 @@ module.exports = function (app) {
     plugin.start = function (options, restartPlugin) {
 
         app.debug('Plugin started');
-        ow.init(log);
+        ow.init(sendDelta, log);
 
         let localSubscription = {
             context: 'vessels.self',
@@ -40,10 +40,10 @@ module.exports = function (app) {
             subscriptionError => {
                 app.error('Error:' + subscriptionError);
             },
-            delta => sendDelta(ow.onDeltasUpdate(delta))
+            delta => ow.onDeltasUpdate(delta)
         );
 
-        let delta = ow.preLoad(null, null, options["apikey"], options["type"], options["offset"])
+        let delta = ow.preLoad(null, options["apikey"], options["type"], options["offset"])
         if (delta)
         {
             sendDelta(delta.update)
@@ -95,7 +95,6 @@ module.exports = function (app) {
                 }
             ]
         });
-        ow.onDeltasPushed();
     }
 
     function sendMeta(units) {
