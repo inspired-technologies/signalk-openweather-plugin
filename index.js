@@ -27,7 +27,7 @@ module.exports = function (app) {
     plugin.start = function (options, restartPlugin) {
 
         app.debug('Plugin started');
-        ow.init(sendDelta, log);
+        ow.init(sendDelta, app.getSelfPath, log);
 
         let localSubscription = {
             context: 'vessels.self',

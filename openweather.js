@@ -22,7 +22,6 @@ let offset = 0
 
 const navigationPosition = 'navigation.position';
 const navigationElevation = 'navigation.gnss.antennaAltitude';
-const environmentRPi = 'environment.cpu.temperature';
 const oneMinute = 60*1000;
 const oneHour = 60*60*1000;
 const refreshRate = oneHour;
@@ -30,8 +29,6 @@ const refreshRate = oneHour;
 const subscriptions = [
     { path: navigationPosition, period: refreshRate, policy: "instant", minPeriod: refreshRate },
     { path: navigationElevation, period: refreshRate, policy: "instant", minPeriod: oneMinute },
-    // workaround required as policy "ideal" not available for navigationPosition
-    { path: environmentRPi, period: refreshRate, policy: "instant", minPeriod: oneMinute },
 ];
 
 // SmartJSON 
@@ -101,7 +98,6 @@ const latest = {
 const subscriptionHandler = [
     { path: navigationPosition, handle: (value) => onPositionUpdate(value) },
     { path: navigationElevation, handle: (value) => onElevationUpdate(value) },
-    { path: environmentRPi, handle: (value) => onPositionUpdate({ "latitude":latest.forecast.lat, "longitude":latest.forecast.lon }) },
 ]
 
 function onDeltasUpdate(deltas) {
@@ -372,9 +368,17 @@ module.exports = {
     preLoad,
     onDeltasUpdate,
 
-    init: function(deltahandler, loghandler) {
+    init: function(deltahandler, getVal, loghandler) {
         send = deltahandler;
         log = loghandler;
         latest.update = null;
+        if (refreshRate) {
+            setTimeout(() => {
+                if (!lastUpdateWithin(refreshRate)) {
+                    onPositionUpdate(getVal(navigationPosition).value);
+                }
+            }, refreshRate)
+            log(`Interval started, refresh rate ${refreshRate/60/1000}min`);
+        }
     }
 }
