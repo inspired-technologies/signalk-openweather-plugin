@@ -14,13 +14,14 @@
 
 var owm = require ('openweather-apis')
 let convert = require ('./skunits')
-let log = null
-let type = 'simple'
+const DEFAULTTYPE = 'simple'
+let log
+let send
+let type
 let offset = 0
 
 const navigationPosition = 'navigation.position';
 const navigationElevation = 'navigation.gnss.antennaAltitude';
-const environmentRPi = 'environment.cpu.temperature';
 const oneMinute = 60*1000;
 const oneHour = 60*60*1000;
 const refreshRate = oneHour;
@@ -28,8 +29,6 @@ const refreshRate = oneHour;
 const subscriptions = [
     { path: navigationPosition, period: refreshRate, policy: "instant", minPeriod: refreshRate },
     { path: navigationElevation, period: refreshRate, policy: "instant", minPeriod: oneMinute },
-    // workaround required as policy "ideal" not available for navigationPosition
-    { path: environmentRPi, period: refreshRate, policy: "instant", minPeriod: oneMinute },
 ];
 
 // SmartJSON 
@@ -96,12 +95,9 @@ const latest = {
     }
 }
 
-let deltaMessages = [];
-
 const subscriptionHandler = [
-    { path: navigationPosition, handle: (value) => onPositionUpdate(value, addMessages) },
+    { path: navigationPosition, handle: (value) => onPositionUpdate(value) },
     { path: navigationElevation, handle: (value) => onElevationUpdate(value) },
-    { path: environmentRPi, handle: (value) => onPositionUpdate({ "latitude":latest.forecast.lat, "longitude":latest.forecast.lon }, addMessages) },
 ]
 
 function onDeltasUpdate(deltas) {
@@ -114,25 +110,13 @@ function onDeltasUpdate(deltas) {
             let onDeltaUpdated = subscriptionHandler.find((d) => d.path === value.path);
 
             if (onDeltaUpdated !== null) {
-                onDeltaUpdated.handle(value.value, addMessages);
+                onDeltaUpdated.handle(value.value);
             }
         });
     });
-
-    return deltaMessages;
 }
 
-function onDeltasPushed () {
-    deltaMessages = [];
-}
-
-function addMessages (updates) {
-    if (updates !== null && updates !== undefined) {
-        updates.forEach((u) => deltaMessages.push(u));
-    }
-} 
-
-function onPositionUpdate(value, callback) {
+function onPositionUpdate(value) {
     if (value == null) log("PositionUpdate: Cannot add null value");
 
     latest.forecast.lat = value.latitude;
@@ -169,7 +153,7 @@ function onPositionUpdate(value, callback) {
                     latest.simple.rain = null
                     latest.simple.weathercode = null            
                 }
-                callback(prepareUpdate(latest.forecast, latest.simple, null));
+                send(prepareUpdate(latest.forecast, latest.simple, null));
             });
         }
         else if ((type==='simple' && offset>0) || type==='full') {
@@ -228,7 +212,7 @@ function onPositionUpdate(value, callback) {
                     latest.simple.rain = null
                     latest.simple.weathercode = null
                 }
-                callback(prepareUpdate(latest.forecast, latest.simple, latest.full));
+                send(prepareUpdate(latest.forecast, latest.simple, latest.full));
             });
         }        
     }
@@ -251,6 +235,9 @@ function prepareUpdate(forecast, weather, full) {
     const noData = "waiting ..."    // only sending for "description"
     const noVal = null              // sending null until data is available
     switch (type) {
+        case 'initial': return [
+            buildDeltaUpdate(simpleDescription, weather.description !== null ? weather.description : noData),
+        ];
         case 'simple': return [
             buildDeltaUpdate(forecastTime, forecast.time !== null ? convert.toSignalK('unixdate', forecast.time).value : noVal),
 
@@ -329,7 +316,7 @@ function buildDeltaUpdate(path, value) {
     }
 }
 
-function preLoad(lat, lon, apikey, configtype, configoffset) {
+function preLoad(pos, apikey, configtype, configoffset) {
     owm.setLang('en');
 	// English - en, Russian - ru, Italian - it, Spanish - es (or sp),
 	// Ukrainian - uk (or ua), German - de, Portuguese - pt,Romanian - ro,
@@ -338,11 +325,9 @@ function preLoad(lat, lon, apikey, configtype, configoffset) {
 	// Turkish - tr, Croatian - hr, Catalan - ca
 
     // set the coordinates (latitude,longitude)
-    latest.forecast.lat = lat;
-    latest.forecast.lon = lon;
+    latest.forecast.lat = (pos && pos!==null ? pos.value.latitude : null);
+    latest.forecast.lon = (pos && pos!==null ? pos.value.longitude : null);
     latest.simple.description = 'connecting to openweathermap...';
-    if (type!==undefined && type!==null)
-        type = configtype.split('-')[0].trim();
     if (offset!==undefined && offset!==null)
     {
         if (offset>48) { log("Forecast supported max. 48Hours!") }
@@ -353,7 +338,12 @@ function preLoad(lat, lon, apikey, configtype, configoffset) {
 	// check http://openweathermap.org/appid#get for get the APPID
     owm.setAPPID(apikey); 
     // return empty data set
+    type = 'initial';
     let initial = prepareUpdate(latest.forecast, latest.simple, latest.full);
+    if (configtype!==undefined && configtype!==null)
+        type = configtype.split('-')[0].trim();
+    else
+        type = DEFAULTTYPE;
     let meta = null
     // add units to updates
     if (initial) {
@@ -361,6 +351,7 @@ function preLoad(lat, lon, apikey, configtype, configoffset) {
         meta = prepareUpdate(null, null, null);
         type = type.replace('meta-', '')        
     }
+
     return { "update": initial, "meta": meta }
 }
 
@@ -376,10 +367,18 @@ module.exports = {
     subscriptions,
     preLoad,
     onDeltasUpdate,
-    onDeltasPushed,
 
-    init: function(loghandler) {
+    init: function(deltahandler, getVal, loghandler) {
+        send = deltahandler;
         log = loghandler;
         latest.update = null;
+        if (refreshRate) {
+            setTimeout(() => {
+                if (!lastUpdateWithin(refreshRate)) {
+                    onPositionUpdate(getVal(navigationPosition).value);
+                }
+            }, refreshRate)
+            log(`Interval started, refresh rate ${refreshRate/60/1000}min`);
+        }
     }
 }
