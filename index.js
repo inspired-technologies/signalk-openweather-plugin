@@ -43,7 +43,7 @@ module.exports = function (app) {
             delta => ow.onDeltasUpdate(delta)
         );
 
-        let delta = ow.preLoad(app.getSelfPath('navigation.position'), options["apikey"], options["type"], options["offset"])
+        let delta = ow.preLoad(app.getSelfPath('navigation.position'), options["apikey"], options["type"], options["offset"], options["current"])
         if (delta)
         {
             sendDelta(delta.update)
@@ -79,6 +79,12 @@ module.exports = function (app) {
             type: 'number',
             title: 'Forecast offset to localtime (0 = current, otherwise next full hour within <offset> hours (max. 47)',
             default: 0
+          },
+          current: {
+            type: 'boolean',
+            title: 'Publish 0h offset forecast as current',
+            description: 'turn this on, only if no other signals on the network (eg. BME280, RUUVI)',
+            default: false
           },
         }
     };
