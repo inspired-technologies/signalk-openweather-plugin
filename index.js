@@ -43,7 +43,7 @@ module.exports = function (app) {
             delta => ow.onDeltasUpdate(delta)
         );
 
-        let delta = ow.preLoad(null, options["apikey"], options["type"], options["offset"])
+        let delta = ow.preLoad(app.getSelfPath('navigation.position'), options["apikey"], options["type"], options["offset"])
         if (delta)
         {
             sendDelta(delta.update)

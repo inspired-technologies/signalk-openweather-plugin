@@ -65,16 +65,20 @@ function toSignalK(units, value) {
     } else if ( units === 'kmh' ) {
         value = value / 3.6
         skUnits = "m/s"
+    } else if ( units === 'm s-1' ) {
+        value = value * 1.0
+        skUnits = "m/s"
     } else if ( units === 'kn' ) {
         value = value / 1.943844
         skUnits = "m/s"
     } else if ( units.includes('Bft') ) {
         value = fromBeaufort(value, (units==='BftMin' ? 'min' : units==='BftMax' ? 'max' : ''))
         skUnits = "m/s"
-    } else if ( units === '°' ) {
+    } else if ( units === '°' || units === 'degrees' ) {
         value = value * (Math.PI/180.0)
         skUnits = 'rad'
     } else if ( units === 'Pa' ) {
+        value = value * 1.0
         skUnits = "Pa"
     } else if ( units === 'hPa' || units=== 'mbar' ) {
         value = value * 100
@@ -86,8 +90,18 @@ function toSignalK(units, value) {
         value = value * 1852
         skUnits = "m"
     } else if ( units === 'm' ) {
+        value = value * 1.0
         skUnits = "m"
-    } else if ( units === 'unixdate' ) {
+    } else if ( units === 'mm' ) {
+        value = value * 1.0
+        skUnits = "mm"
+    } else if ( units === 'J kg-1' ) {
+        value = value * 1.0
+        skUnits = "J/kg"
+    } else if ( units === 'kg m-2 s-1' ) {
+        value = value * 1.0
+        skUnits = "kg/s/qm"
+    } else if ( units === 'unixdate' || units === 'unix' ) {
         value = new Date(value * 1000).toISOString()
         skUnits = ""
     }
@@ -171,8 +185,8 @@ function toTarget(skunit, value, target, precision) {
     } else {
         unit = skunit
     }
-    if (target!=='geoJson' && typeof precision==='number')
-        value = value.toFixed(precision)
+    if (target!=='geoJson' && target!=='latLng' && typeof precision==='number')
+        value = parseFloat(value.toFixed(precision))
     return { value: value, units: unit }
 }
 

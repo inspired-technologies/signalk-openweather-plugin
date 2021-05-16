@@ -298,7 +298,7 @@ function prepareUpdate(forecast, weather, full) {
             buildDeltaUpdate(fullIcon, {}),
             buildDeltaUpdate(fullMain, {}),
             buildDeltaUpdate(fullUVIndex, {}),
-            buildDeltaUpdate(fullClouds, {}),
+            buildDeltaUpdate(fullClouds, { units: "ratio" }),
             buildDeltaUpdate(fullVisibility, {}),
             buildDeltaUpdate(simpleRain, {}),
             buildDeltaUpdate(simpleWeatherCode, {})
@@ -351,6 +351,8 @@ function preLoad(pos, apikey, configtype, configoffset) {
         meta = prepareUpdate(null, null, null);
         type = type.replace('meta-', '')        
     }
+    if (pos && pos!==null)
+        onPositionUpdate(pos.value);
 
     return { "update": initial, "meta": meta }
 }
