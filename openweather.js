@@ -25,7 +25,7 @@ const navigationPosition = 'navigation.position';
 const navigationElevation = 'navigation.gnss.antennaAltitude';
 const oneMinute = 60*1000;
 const oneHour = 60*60*1000;
-const refreshRate = oneMinute;
+const refreshRate = oneHour;
 
 const subscriptions = [
     { path: navigationPosition, period: refreshRate, policy: "instant", minPeriod: refreshRate },
@@ -134,7 +134,7 @@ function onPositionUpdate(value) {
 
     if (!lastUpdateWithin(refreshRate) && isValidPosition(latest.forecast.lat, latest.forecast.lon))
     {
-        latest.update = Date.now();
+        latest.update = Date.now()-100;
 
         owm.setCoordinate(value.latitude, value.longitude);
         log("OWM Coordinates "+value.latitude+","+value.longitude);
@@ -416,13 +416,15 @@ module.exports = {
         send = deltahandler;
         log = loghandler;
         latest.update = null;
+        let timerId = null;
         if (refreshRate) {
-            setTimeout(() => {
+            timerId = setInterval(() => {
                 if (!lastUpdateWithin(refreshRate)) {
                     onPositionUpdate(getVal(navigationPosition).value);
                 }
             }, refreshRate)
             log(`Interval started, refresh rate ${refreshRate/60/1000}min`);
         }
+        return timerId;
     }
 }

@@ -24,10 +24,11 @@ module.exports = function (app) {
     plugin.description = 'Provide forecast data from OpenWeather Service';
 
     var unsubscribes = [];
+    let timerId = null;
     plugin.start = function (options, restartPlugin) {
 
         app.debug('Plugin started');
-        ow.init(sendDelta, app.getSelfPath, log);
+        timerId = ow.init(sendDelta, app.getSelfPath, log);
 
         let localSubscription = {
             context: 'vessels.self',
@@ -54,6 +55,7 @@ module.exports = function (app) {
 
     plugin.stop = function () {
         unsubscribes.forEach(f => f());
+        if (timerId!==null) clearInterval(timerId);
         unsubscribes = [];
         app.debug('Plugin stopped');
     };
@@ -77,8 +79,9 @@ module.exports = function (app) {
           },
           offset: {
             type: 'number',
-            title: 'Forecast offset to localtime (0 = current, otherwise next full hour within <offset> hours (max. 47)',
-            default: 0
+            title: 'Forecast offset to localtime',
+            description: '0 = current, otherwise next full hour within <offset> hours (max. 47)',
+            default: 1
           },
           current: {
             type: 'boolean',
