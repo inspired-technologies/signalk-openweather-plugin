@@ -73,3 +73,4 @@ The plugin shall adhere to meta-data units according to the SignalK definition.
 - v0.6: Support value timeouts according to the SignalK spec.
 - v0.7: Feature (PR#5): Option to publish 0h offset forecast as current underneith `environment.outside.*`.
 - v0.7: Refactoring (PR#6): Interval-based data push
+- v0.8: Package updates

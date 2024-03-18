@@ -1,11 +1,11 @@
 {
   "name": "openweather-signalk",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "SignalK plugin to provide data from OpenWeather Service",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "debug": "node --inspect-brk=192.168.0.97:9229 /usr/local/lib/node_modules/signalk-server/bin/signalk-server"
+    "debug": "node --inspect-brk=192.168.0.97:9229 /usr/lib/node_modules/signalk-server/bin/signalk-server"
   },
   "repository": {
     "type": "git",
@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/inspired-technologies/signalk-openweather-plugin#readme",
   "dependencies": {
-    "debug": "^4.3.1",
-    "openweather-apis": "^4.4.1"
+    "debug": "^4.3.4",
+    "openweather-apis": "^4.5.0"
   }
 }

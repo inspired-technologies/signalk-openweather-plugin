@@ -1,5 +1,5 @@
 /*
-    Copyright © 2021 Inspired Technologies GmbH (www.inspiredtechnologies.eu)
+    Copyright © 2024 Inspired Technologies GmbH (www.inspiredtechnologies.eu)
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal

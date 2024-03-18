@@ -100,9 +100,15 @@ function toSignalK(units, value) {
         skUnits = "J/kg"
     } else if ( units === 'kg m-2 s-1' ) {
         value = value * 1.0
-        skUnits = "kg/s/qm"
-    } else if ( units === 'unixdate' || units === 'unix' ) {
+        skUnits = "mm/s"
+    } else if ( units === 'unixdate' ) {
         value = new Date(value * 1000).toISOString()
+        skUnits = ""
+    } else if ( units === 'geoJson' ) {
+        value = { latitude: value[1], longitude: value[0] }
+        skUnits = ""
+    } else if ( units === 'latLng' ) {
+        value = { latitude: value[0], longitude: value[1] }
         skUnits = ""
     }
     return { value: value, units: skUnits }
@@ -156,7 +162,7 @@ function toTarget(skunit, value, target, precision) {
     } else if ( skunit === 'm/s' && (target==='Bft') ) {
         value = toBeaufort(value)
         unit = target
-    } else if ( skunit ==='rad' && (target === '°' || target==='') ) {
+    } else if ( skunit ==='rad' && (target === '°' || target==='deg' || target==='') ) {
         value = value * (180.0/Math.PI)
         unit = '°'
     } else if ( skunit === 'Pa' && (target===undefined) ) {
@@ -182,10 +188,13 @@ function toTarget(skunit, value, target, precision) {
     } else if ( skunit === 'dt' && target === 's' ) {
         value = (new Date(value).getTime())/1000
         unit ='s'
+    } else if ( skunit === '{obj}' && target!==undefined && value.hasOwnProperty(target) ) {
+        unit = value[target].hasOwnProperty('unit') ? value[target].unit : ''
+        value = value[target].hasOwnProperty('value') ? value[target].value : value[target]
     } else {
         unit = skunit
     }
-    if (target!=='geoJson' && target!=='latLng' && typeof precision==='number')
+    if (typeof value==='number' && target!=='geoJson' && target!=='latLng' && typeof precision==='number')
         value = parseFloat(value.toFixed(precision))
     return { value: value, units: unit }
 }
