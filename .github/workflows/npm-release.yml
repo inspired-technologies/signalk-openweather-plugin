@@ -13,11 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Check if version has been updated
         id: check
-        uses: EndBug/version-check@v1
+        uses: EndBug/version-check@v2
         with:
           file-url: https://unpkg.com/openweather-signalk@latest/package.json
           static-checking: localIsNew
@@ -47,9 +47,9 @@ jobs:
           
       - name: Setup Node
         if: steps.check.outputs.changed == 'true'
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v4
         with:
-          node-version: 14
+          node-version: 18
           registry-url: https://registry.npmjs.org/
       - name: Install Package 
         if: steps.check.outputs.changed == 'true'
