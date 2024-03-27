@@ -114,16 +114,16 @@ function onDeltasUpdate(deltas) {
     if (deltas === null && !Array.isArray(deltas) && deltas.length === 0) {
         throw "Deltas cannot be null";
     }
+    if (deltas.updates && Array.isArray(deltas.updates))
+        deltas.updates.forEach(u => {
+            u.values.forEach((value) => {
+                let onDeltaUpdated = subscriptionHandler.find((d) => d.path === value.path);
 
-    deltas.updates.forEach(u => {
-        u.values.forEach((value) => {
-            let onDeltaUpdated = subscriptionHandler.find((d) => d.path === value.path);
-
-            if (onDeltaUpdated !== null) {
-                onDeltaUpdated.handle(value.value);
-            }
+                if (onDeltaUpdated !== null) {
+                    onDeltaUpdated.handle(value.value);
+                }
+            });
         });
-    });
 }
 
 function onPositionUpdate(value) {
