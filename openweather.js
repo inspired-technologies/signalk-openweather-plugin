@@ -12,14 +12,24 @@
     copies or substantial portions of the Software.
 */
 
-var owm = require ('openweather-apis')
-let convert = require ('./skunits')
+const axios = require ('axios')
+const convert = require ('./skunits')
+const ONECALLAPI = 'https://api.openweathermap.org/data/3.0/onecall'
 const DEFAULTTYPE = 'simple'
 let log
-let send
-let publishType
-let publishCurrent
-let offset = 0
+let logwarning = true
+let sendVal
+let pluginStatus
+let pluginError
+let apiKey = ''
+let variables = []
+let output = []
+let meta
+let horizon = {
+    hours: 1,
+    unit: 'd'
+}
+let offset = 1
 
 const navigationPosition = 'navigation.position';
 const navigationElevation = 'navigation.gnss.antennaAltitude';
@@ -29,76 +39,126 @@ const refreshRate = oneHour;
 
 const subscriptions = [
     { path: navigationPosition, period: refreshRate, policy: "instant", minPeriod: refreshRate },
-    { path: navigationElevation, period: refreshRate, policy: "instant", minPeriod: oneMinute },
+    { path: navigationElevation, period: refreshRate, policy: "instant", minPeriod: 5*oneMinute },
 ];
 
-// SmartJSON 
-/* 
-    temp : 25,
-    humidity : 88,
-    pressure : 101325,
-    description : 'sun',
-    rain: 4,
-    weathercode : 200 
-*/
+// basic Path definitions
+const pathCurrent = "environment.outside.";
+const currentSunrise = pathCurrent+'sunlight.times.sunrise'
+const currentSunset = pathCurrent+'sunlight.times.sunset'
+const currentTemp = pathCurrent+'temperature';
+const currentFeelsLike = pathCurrent+'feelsLike';
+const currentPressure = pathCurrent+'pressure';
+const currentHumidity = pathCurrent+'relativeHumidity';
+const currentDewPoint = pathCurrent+'dewPoint';
+const currentClouds = pathCurrent+'clouds';
+const currentUVI = pathCurrent+'uvindex';
+const currentVisibility = pathCurrent+'visbility';
+const currentWindSpeed = pathCurrent+'wind.speed';
+const currentWindDir = pathCurrent+'wind.direction';
+const currentWindGust = pathCurrent+'wind.gust';
+const currentRain = pathCurrent+'precipitation.rain';
+const currentSnow = pathCurrent+'precipitation.snow';
+const currentMain = pathCurrent+'weather.main';
+const currentDesc = pathCurrent+'weather.desc';
+const currentIcon = pathCurrent+'weather.icon';
 const pathPrefix = "environment.forecast.";
-const currentPrefix = "environment.outside.";
 const forecastTime = pathPrefix+"time";
-const forecastSunrise = pathPrefix+"time.sunrise";
-const forecastSunset = pathPrefix+"time.sunset";
-const simpleTemp = pathPrefix+'temperature';
-const currentTemp = currentPrefix+'temperature';
-const simpleHumidity = pathPrefix+'humidity';
-const currentHumidity = currentPrefix+'humidity';
-const simplePressure = pathPrefix+'pressure';
-const currentPressure = currentPrefix+'pressure';
-const simpleDescription = pathPrefix+'description';
-const simpleRain = pathPrefix+'rain';
-const simpleWeatherCode = pathPrefix+'weather.code';
-const fullMain = pathPrefix+'weather';
-const fullIcon = pathPrefix+'weather.icon';
-const fullTempMin = pathPrefix+'temperature.minimum';
-const fullTempMax = pathPrefix+'temperature.maximum';
-const fullFeelsLike = pathPrefix+'temperature.feelslike';
-const fullDewPoint = pathPrefix+'temperature.dewpoint';
-const fullUVIndex = pathPrefix+'weather.uvindex';
-const fullClouds = pathPrefix+'weather.clouds';
-const fullVisibility = pathPrefix+'weather.visibility';
-const fullWindSpeed = pathPrefix+'wind.speed';
-const fullWinDir = pathPrefix+'wind.direction';
+const forecastPressure = pathPrefix+'pressure';
+const forecastTemperature = pathPrefix+'temperature';
+const forecastFeelsLike = pathPrefix+'feelsLike';
+const forecastHumidity = pathPrefix+'relativeHumidity';
+const forecastPrecipProp = pathPrefix+'precipitation.probability';
+const forecastPrecipRain = pathPrefix+'precipitation.rain';
+const forecastPrecipSnow = pathPrefix+'precipitation.snow';
+const forecastDewPoint = pathPrefix+'dewPoint';
+const forecastClouds = pathPrefix+'clouds';
+const forecastUVI = pathPrefix+'uvindex';
+const forecastVisibility = pathPrefix+'visibility';
+const forecastWindSpeed = pathPrefix+'wind.speed';
+const forecastWindDir = pathPrefix+'wind.direction';
+const forecastWindGust = pathPrefix+'wind.gust';
+const forecastMain = pathPrefix+'weather.main';
+const forecastDesc = pathPrefix+'weather.desc';
+const forecastIcon = pathPrefix+'weather.icon';
 
 const latest = {
     update: null,
+    forecast: { time: null, tz: null },
+    position: { lat: null, lon: null },
     current: {
-        temp: null,
-        humidity: null,
-        pressure: null
+        publish: false,
+        sunrise : { path: currentSunrise, value: null, unit: 'unixdate', key: 'sunrise', description: 'Sunrise time, UTC. For polar areas in midnight sun and polar night periods this parameter is not returned in the response' },
+        sunset : { path: currentSunset, value: null, unit: 'unixdate', key: 'sunset', description: 'Sunset time, Unix, UTC. For polar areas in midnight sun and polar night periods this parameter is not returned in the response' },
+        temperature : { path: currentTemp, value: null, unit: 'K', key: 'temp', description: 'Current temperature' },
+        feelslike : { path: currentFeelsLike, value: null, unit: 'K', key: 'feels_like', description: 'Current temperature, accounts for the human perception of weather.' },
+        pressure : { path: currentPressure, value: null, unit: 'hPa', key: 'pressure', description: 'Current atmospheric pressure on the sea level' },        
+        humidity : { path: currentHumidity, value: null, unit: 'ratio', key: 'humidity', description: 'Current relative humidity' },
+        dewpoint : { path: currentDewPoint, value: null, unit: 'K', key: 'dew_point', description: 'Current atmospheric temperature (varying according to pressure and humidity) below which water droplets begin to condense and dew can form' },
+        clouds : { path: currentClouds, value: null, unit: 'ratio', key: 'clouds', description: 'Current cloudiness' },
+        uvindex : { path: currentUVI, value: null, unit: '', key: 'uvi', description: 'Current UV index' },
+        visibility : { path: currentVisibility, value: null, unit: 'm', key: 'visibility', description: 'Average visibility. The maximum value of the visibility is 10km' },
+        wind: {
+            speed : { path: currentWindSpeed, value: null, unit: 'm/s', key: 'wind_speed', description: 'Wind speed' },
+            direction : { path: currentWindDir, value: null, unit: 'degrees', key: 'wind_deg', description: 'Wind direction, angle counting clockwise from the North' },
+            gust : { path: currentWindGust, value: null, unit: 'm/s', key: 'wind_gust', description: 'Gust wind speed' },
+        },
+        rain : { path: currentRain, value: null, unit: 'mm/h', key: 'current.rain.1h', description: 'Precipitation, where available' },
+        snow : { path: currentSnow, value: null, unit: 'mm/h', key: 'current.snow.1h', description: 'Precipitation, where available' },
+        weather : {
+            id: { path: null, value: null, unit: '', key: '0:weather.id', description: 'Weather condition id' },
+            main: { path: currentMain, value: null, unit: 'string', key: '0:weather.main', description: 'Group of weather parameters (Rain, Snow etc.)' },
+            desc: { path: currentDesc, value: null, unit: 'string', key: '0:weather.description', description: 'Weather condition within the group. Output available in multiple languages' },
+            icon: { path: currentIcon, value: null, unit: 'string', key: '0:weather.icon', description: 'Weather icon id' },
+        }
     },
-    forecast: {
-        time: null,
-        lat: null,
-        lon: null,
-        sunrise: null,
-        sunset: null,
-        main: null, 
-        icon: null 
+    pressure: {
+        simple: true,
+        sealevel : { path: forecastPressure, value: null, unit: 'hPa', key: 'pressure', description: 'Atmospheric pressure on the sea level' },
     },
-    simple: {
-        temp : null,
-        humidity : null,
-        pressure : null,
-        description : null,
-        rain: null,
-        weathercode : null
+    temperature: {
+        simple: true,
+        outside : { path: forecastTemperature, value: null, unit: 'K', key: 'temp', description: 'Temperature' },
+        feelslike : { path: forecastFeelsLike, value: null, unit: 'K', key: 'feels_like', description: 'Temperature, accounts for the human perception of weather' },
     },
-    full: {
-        temp: { min: null, max: null },   
-        feelslike: null,
-        dewpoint : null,
-        uvindex : null,
-        clouds : null,
-        visibility : null,
-        wind: { speed: null, dir: null }
+    humidity: {
+        simple: true,
+        relative : { path: forecastHumidity, value: null, unit: 'ratio', key: 'humidity', description: 'Humidity' },
+    },
+    precipitation: {
+        simple: true,
+        pop : { path: forecastPrecipProp, value: null, unit: 'ratio', key: 'pop', description: 'Probability of precipitation. Values vary between 0 and 1, where 0 is equal to 0%, 1 is equal to 100%' },
+        rain : { path: forecastPrecipRain, value: null, unit: 'mm/s', key: 'rain.1h', description: 'Precipitation, mm/h - where available' },
+        snow : { path: forecastPrecipSnow, value: null, unit: 'mm/s', key: 'snow.1h', description: 'Precipitation, mm/h - where available' },         
+    },
+    wind: {
+        simple: false,
+        speed : { path: forecastWindSpeed, value: null, unit: 'm/s', key: 'wind_speed', description: 'Wind speed' },
+        direction : { path: forecastWindDir, value: null, unit: 'degrees', key: 'wind_deg', description: 'Wind direction, angle counting clockwise from the North' },
+        gust : { path: forecastWindGust, value: null, unit: 'm/s', key: 'wind_gust', description: 'Gust wind speed' },
+    },
+    atmospherics: {
+        simple: false,
+        dewpoint : { path: forecastDewPoint, value: null, unit: 'K', key: 'dew_point', description: 'Atmospheric temperature (varying according to pressure and humidity) below which water droplets begin to condense and dew can form' },
+        uvindex : { path: forecastUVI, value: null, unit: '', key: 'uvi', description: 'UV index' },
+        clouds : { path: forecastClouds, value: null, unit: 'ratio', key: 'clouds', description: 'Cloudiness' },
+        visibility : { path: forecastVisibility, value: null, unit: 'm', key: 'visibility', description: 'Average visibility, metres. The maximum value of the visibility is 10km' },
+    },
+    weather : {
+        simple: false,
+        id: { path: null, value: null, unit: 'string', key: '0:weather.id', description: 'Weather conidition id' },
+        main: { path: forecastMain, value: null, unit: 'string', key: '0:weather.main', description: 'Group of weather parameters (Rain, Snow etc.)' },
+        desc: { path: forecastDesc, value: null, unit: 'string', key: '0:weather.description', description: 'Weather condition within the group. Output available in multiple languages' },
+        icon: { path: forecastIcon, value: null, unit: 'string', key: '0:weather.icon', description: 'Weather icon id' },
+    },
+    alerts : {
+        simple: false,
+        sender: { path: null, value: null, unit: 'string', key: 'alerts.sender_name', description: 'Name of the alert source' },
+        event: { path: null, value: null, unit: 'string', key: 'alerts.event', description: 'Alert event name' },
+        start: { path: null, value: null, unit: 'unixdate', key: 'alerts.start', description: 'UTC start of the alert' },
+        end: { path: null, value: null, unit: 'unixdate', key: 'alerts.end', description: 'UTC end of the alert' },
+        desc: { path: null, value: null, unit: 'string', key: 'alerts.description', description: 'Description of the alert' },
+        tags: { path: null, value: null, unit: 'string', key: 'alerts.tags', description: 'Type of severe weather' },
     },
     altitude: {
         elevation: 0,
@@ -111,132 +171,151 @@ const subscriptionHandler = [
 ]
 
 function onDeltasUpdate(deltas) {
-    if (deltas === null && !Array.isArray(deltas) && deltas.length === 0) {
+    if (apiKey==='')
+        return
+    else if (deltas === null && !Array.isArray(deltas) && deltas.length === 0) {
         throw "Deltas cannot be null";
     }
-    if (deltas.updates && Array.isArray(deltas.updates))
-        deltas.updates.forEach(u => {
-            u.values.forEach((value) => {
-                let onDeltaUpdated = subscriptionHandler.find((d) => d.path === value.path);
 
-                if (onDeltaUpdated !== null) {
-                    onDeltaUpdated.handle(value.value);
-                }
-            });
+    deltas.updates.forEach(u => {
+        u.values.forEach((value) => {
+            let onDeltaUpdated = subscriptionHandler.find((d) => d.path === value.path);
+
+            if (onDeltaUpdated !== null) {
+                onDeltaUpdated.handle(value.value);
+            }
         });
+    });
 }
 
-function onPositionUpdate(value) {
+async function onPositionUpdate(value) {
     if (value == null) log("PositionUpdate: Cannot add null value");
 
-    latest.forecast.lat = value.latitude;
-    latest.forecast.lon = value.longitude;
+    latest.position.lat = value.latitude;
+    latest.position.lon = value.longitude;
 
-    if (!lastUpdateWithin(refreshRate) && isValidPosition(latest.forecast.lat, latest.forecast.lon))
+    if (!lastUpdateWithin(refreshRate) && isValidPosition(latest.position.lat, latest.position.lon))
     {
-        latest.update = Date.now()-100;
+        latest.update = Date.now();
+        log(`OpenWeather Coordinates ${latest.position.lat},${latest.position.lon}`);
 
-        owm.setCoordinate(value.latitude, value.longitude);
-        log("OWM Coordinates "+value.latitude+","+value.longitude);
-        if (publishType==='simple' && offset==0) {
-            // get a simple JSON Object with temperature, humidity, pressure and description
-            owm.getSmartJSON(function(err, smart){
-                if (!err)
-                {
-                    latest.forecast.time = latest.update/1000 // getting ms instead of s
-                    latest.simple.temp = smart.temp
-                    latest.current.temp = latest.simple.temp
-                    latest.simple.humidity = smart.humidity
-                    latest.current.humidity = latest.simple.humidity
-                    latest.simple.pressure = convert.toStationAltitude(smart.pressure * 100, latest.altitude.elevation, smart.temp) // getting hPa instead of Pa
-                    latest.current.pressure = latest.simple.pressure
-                    latest.simple.description = smart.description
-                    latest.simple.rain = smart.rain
-                    latest.simple.weathercode = smart.weathercode
-                    logResult(latest.current, smart);
-                }
-                else
-                {
-                    log(err);
-                    latest.forecast.time = null
-                    latest.simple.temp = null
-                    latest.current.temp = null
-                    latest.simple.humidity = null
-                    latest.current.humidity = null
-                    latest.simple.pressure = null
-                    latest.current.pressure = null
-                    latest.simple.description = err
-                    latest.simple.rain = null
-                    latest.simple.weathercode = null            
-                }
-                send(publishCurrent ? prepareUpdate(publishType).concat(prepareUpdate('current')) : prepareUpdate(publishType));
-            });
-        }
-        else if ((publishType==='simple' && offset>0) || publishType==='full') {
-            owm.setExclude('minutely,daily,alerts')
-            // get a simple JSON Object with temperature, humidity, pressure and description
-            owm.getWeatherOneCall(function(err, data){
-                if (!err)
-                {
-                    latest.forecast.sunrise = data.current.sunrise
-                    latest.forecast.sunset = data.current.sunset
-                    latest.forecast.time = (offset==0 ? data.current.dt : data.hourly[offset].dt)
-                    latest.simple.temp = (offset==0 ? data.current.temp : data.hourly[offset].temp)
-                    latest.current.temp = data.current.temp
-                    latest.full.feelslike = (offset==0 ? data.current.feels_like : data.hourly[offset].feels_like)
-                    latest.simple.pressure = convert.toStationAltitude((offset==0 ? data.current.pressure : data.hourly[offset].pressure) * 100, 
-                        latest.altitude.elevation, latest.simple.temp) // getting hPa instead of Pa
-                    latest.current.pressure = convert.toStationAltitude(data.current.pressure * 100, latest.altitude.elevation, latest.current.temp) // getting hPa instead of Pa
-                    latest.simple.humidity = (offset==0 ? data.current.humidity : data.hourly[offset].humidity)
-                    latest.current.humidity = data.current.humidity
-                    latest.full.dewpoint = (offset==0 ? data.current.dew_point : data.hourly[offset].dew_point)
-                    latest.full.uvindex = (offset==0 ? data.current.uvi : data.hourly[offset].uvi)
-                    latest.full.clouds = (offset==0 ? data.current.clouds : data.hourly[offset].clouds)
-                    latest.full.visibility = (offset==0 ? data.current.visibility : data.hourly[offset].visibility)
-                    latest.full.wind.speed = (offset==0 ? data.current.wind_speed : data.hourly[offset].wind_speed)
-                    latest.full.wind.dir = (offset==0 ? data.current.wind_deg : data.hourly[offset].wind_deg)
-                    latest.simple.description = (offset==0 ? data.current.weather[0].description : data.hourly[offset].weather[0].description)
-                    latest.forecast.icon = (offset==0 ? data.current.weather[0].icon : data.hourly[offset].weather[0].icon)
-                    latest.forecast.main = (offset==0 ? data.current.weather[0].main : data.hourly[offset].weather[0].main)
-                    latest.simple.rain = (data.hourly[offset].rain!==undefined ? data.hourly[offset].rain : {})
-                    latest.simple.weathercode = (offset==0 ? data.hourly[0].weather[0].id : data.hourly[offset].weather[0].id)
-                    for (i=0; i<Math.min(data.hourly.length, 23); i++)
-                    {
-                        if (latest.full.temp.min==null || data.hourly[i].temp < latest.full.temp.min)
-                            latest.full.temp.min = data.hourly[i].temp
-                        if (latest.full.temp.max==null || data.hourly[i].temp > latest.full.temp.max)
-                            latest.full.temp.max = data.hourly[i].temp
+        let measures = '' 
+        if (variables.length>0) variables.forEach(v => measures = (measures==='' ? v : measures+','+v));
+        let excludes = typeof meta === 'undefined' ? 'minutely,daily' : 'minutely,daily,metadata' 
+        let fchours = horizon.hours+','+horizon.unit
+        let config = {
+            method: 'get',
+            url: ONECALLAPI+`?lat=${latest.position.lat}&lon=${latest.position.lon}&exclude=${excludes}&appid=${apiKey}`,
+            headers: { 
+            'Content-Type': 'application/json',
+            }
+        };
+            
+        const response = axios(config)
+            .then( (response) => {
+                if (latest.update===null || latest.weather.id.value===null)
+                    pluginStatus('Started')
+                let result = {}
+                
+                // update snap data
+                latest.position.lat = response.data.lat
+                latest.position.lon = response.data.lon
+                latest.forecast.time = response.data.hourly.length>0 && response.data.hourly.length>offset ? (response.data.current.dt + (offset)*3600)*1000 : null
+                latest.forecast.tz = response.data.timezone
+                log(`Forecast received for ${new Date(latest.forecast.time).toString()}`)
+
+                // update latest values from response.current
+                for (const o of Object.keys(latest.current))
+                    if (typeof latest.current[o]==='object' && !latest.current[o].hasOwnProperty('key')) 
+                        for (const sub of Object.keys(latest.current[o]))    
+                        {
+                            let key = latest.current[o][sub].key
+                            if (key.includes(':') && Array.isArray(response.data.current[key.split(':')[1].split('.')[0]]))
+                                {
+                                    let lookup = response.data.current[key.split(':')[1].split('.')[0]][key.split(':')[0]]
+                                    latest.current[o][sub].value = convert.toSignalK(latest.current[o][sub].unit, lookup[key.split('.')[1]])
+                                }
+                            else if (response.data.current.hasOwnProperty(key))
+                                latest.current[o][sub].value = convert.toSignalK(latest.current[o][sub].unit, response.data.current[key])
+                        }
+                    else if (typeof latest.current[o]==='object' && latest.current[o].hasOwnProperty('key')) {
+                        let key = latest.current[o].key
+                        if (key.includes(':') && Array.isArray(response.data.current[key.split(':')[1].split('.')[0]]))
+                            {
+                                let lookup = response.data.current[key.split(':')[1].split('.')[0]][key.split(':')[0]]
+                                latest.current[o].value = convert.toSignalK(latest.current[o].unit, lookup[key.split('.')[1]])                      
+                            }
+                        else if (response.data.current.hasOwnProperty(key))
+                            latest.current[o].value = convert.toSignalK(latest.current[o].unit, response.data.current[key])
                     }
-                    logResult(latest.current, (publishType==='simple' ? { weather: latest.simple } :  { forecast: latest.forecast, weather: latest.simple, full: latest.full }));
+
+                // update latest values from response.hourly by offset                    
+                if (response.data.hourly.length>0 && response.data.hourly.length>offset) {
+                    for (const m of Object.keys(latest).filter(m => latest[m]!==null && latest[m].hasOwnProperty('simple')))
+                        for (const o of Object.keys(latest[m]).filter(o => o!=='simple'))
+                            if (typeof latest[m][o]==='object' && !latest[m][o].hasOwnProperty('key')) 
+                                for (const sub of Object.keys(latest[m][o]))    
+                                {
+                                    let key = latest[m][o][sub].key
+                                    if (key.includes(':') && Array.isArray(response.data.hourly[offset][key.split(':')[1].split('.')[0]]))
+                                        {
+                                            let lookup = response.data.hourly[offset][key.split(':')[1].split('.')[0]][key.split(':')[0]]
+                                            latest[m][o][sub].value = convert.toSignalK(latest[m][o][sub].unit, lookup[key.split('.')[1]])                           
+                                        }
+                                    else if (response.data.hourly[offset].hasOwnProperty(key))
+                                        latest[m][o][sub].value = convert.toSignalK(latest[m][o][sub].unit, response.data.hourly[offset][key])
+                                }
+                            else if (typeof latest[m][o]==='object' && latest[m][o].hasOwnProperty('key')) {
+                                let key = latest[m][o].key
+                                if (key.includes(':') && Array.isArray(response.data.hourly[offset][key.split(':')[1].split('.')[0]]))
+                                    {
+                                        let lookup = response.data.hourly[offset][key.split(':')[1].split('.')[0]][key.split(':')[0]]
+                                        latest[m][o].value = convert.toSignalK(latest[m][o].unit, lookup[key.split('.')[1]])               
+                                    }
+                                else if (response.data.hourly[offset].hasOwnProperty(key))
+                                    latest[m][o].value = convert.toSignalK(latest[m][o].unit, response.data.hourly[offset][key])
+                            }                                            
                 }
-                else
-                {
-                    log(err);
-                    latest.forecast.sunrise = null
-                    latest.forecast.sunset =null
-                    latest.forecast.time = null 
-                    latest.simple.temp = null
-                    latest.current.temp = null
-                    latest.full.feelslike = null
-                    latest.simple.pressure = null
-                    latest.current.pressure = null
-                    latest.simple.humidity = null
-                    latest.current.humidity = null
-                    latest.full.dewpoint = null
-                    latest.full.uvindex = null
-                    latest.full.clouds = null
-                    latest.full.visibility = null
-                    latest.full.wind.speed = null
-                    latest.full.wind.dir = null
-                    latest.simple.description = null
-                    latest.forecast.icon = null
-                    latest.forecast.main = null
-                    latest.simple.rain = null
-                    latest.simple.weathercode = null
-                }
-                send(publishCurrent ? prepareUpdate(publishType).concat(prepareUpdate('current')) : prepareUpdate(publishType));
+
+                let measures = Object.keys(latest).filter(k => latest[k]!==null && (k==='current' || latest[k].hasOwnProperty('simple')))
+                output = []
+                for (const m of measures)
+                    Object.keys(latest[m]).forEach(o => { 
+                        if (typeof latest[m][o]==='object' && latest[m][o].hasOwnProperty('key') && latest[m][o].path!==null)
+                            output.push({ path: latest[m][o].path, val: latest[m][o].value })
+                        else if (typeof latest[m][o]==='object' && !latest[m][o].hasOwnProperty('key'))
+                            for (const s of Object.keys(latest[m][o]))
+                                if (typeof latest[m][o][s]==='object' && latest[m][o][s].hasOwnProperty('key') && latest[m][o][s].path!==null)
+                                    output.push({ path: latest[m][o][s].path, val: latest[m][o][s].value })
+                            })
+
+                output.filter(o => o.path!==null && o.val!==null && o.val.value!==null).forEach(o => {
+                    let res = o.path.includes('outside') ? o.path.replace('environment.', '').split('.') : 
+                              o.path.replace('environment.forecast.', '').split('.')
+                    let val = result
+                    for (i=0; i<res.length; i++)
+                        if (i===res.length-1)
+                            val[res[i]] = o.val.value
+                        else if (!val.hasOwnProperty(res[i]))
+                        {
+                            val[res[i]] = {}
+                            val = val[res[i]]
+                        }
+                        else
+                            val = val[res[i]]
+
+                });
+                log(result);
+                sendVal(prepareUpdate('values'))
+            })
+            .catch( (error) => {
+                if (error.hasOwnProperty('code') && error.code==="ERR_BAD_REQUEST" && error.response.status===401) {
+                    log(`Unauthorized: ${error.message.replace('Please note that using One Call','OpenWeather')}`)
+                    pluginError('Error: OpenWeather API unauthorized')
+                } else {
+                    log(error);
+                }   
             });
-        }        
     }
 }
 
@@ -253,158 +332,98 @@ function onElevationUpdate(value) {
     }
 }
 
-function logResult (current, forecast) {
-    let result = {}
-    if (publishType==='simple' && offset===0)
-        result.smart = forecast
-    else
-        result = forecast 
-    if (publishCurrent && current!==null)
-        result.current = current
-    log(result)
-}
-
 function prepareUpdate(type) {
-    const noData = "waiting ..."    // only sending for "description"
-    const noVal = null              // sending null until data is available
+    let update = []
     switch (type) {
-        case 'initial': return [
-            buildDeltaUpdate(simpleDescription, latest.simple.description !== null ? latest.simple.description : noData),
-        ];
-        case 'current': return [
-            buildDeltaUpdate(currentTemp, latest.current.temp),
-            buildDeltaUpdate(currentHumidity, latest.current.humidity !== null ? convert.toSignalK('%', latest.current.humidity).value : noVal),
-            buildDeltaUpdate(currentPressure, latest.current.pressure)
-        ];
-        case 'simple': return [
-            buildDeltaUpdate(forecastTime, latest.forecast.time !== null ? convert.toSignalK('unixdate', latest.forecast.time).value : noVal),
-
-            buildDeltaUpdate(simpleDescription, latest.simple.description !== null ? latest.simple.description : noData),
-            buildDeltaUpdate(simpleTemp, latest.simple.temp),
-            buildDeltaUpdate(simpleHumidity, latest.simple.humidity !== null ? convert.toSignalK('%', latest.simple.humidity).value : noVal),
-            buildDeltaUpdate(simplePressure, latest.simple.pressure),
-            buildDeltaUpdate(simpleRain, latest.simple.rain !== null ? latest.simple.rain : {}),
-            buildDeltaUpdate(simpleWeatherCode, latest.simple.weathercode)
-        ];
-        case 'full': return [
-            buildDeltaUpdate(forecastTime, latest.forecast.time !== null ? convert.toSignalK('unixdate', latest.forecast.time).value : noVal),
-            buildDeltaUpdate(forecastSunrise, latest.forecast.sunrise !== null ? convert.toSignalK('unixdate', latest.forecast.sunrise).value : noVal),
-            buildDeltaUpdate(forecastSunset, latest.forecast.sunset !== null ? convert.toSignalK('unixdate', latest.forecast.sunset).value : noVal),
-
-            buildDeltaUpdate(simpleDescription, latest.simple.description !== null ? latest.simple.description : noData),
-            buildDeltaUpdate(fullIcon, latest.forecast.icon),
-            buildDeltaUpdate(fullMain, latest.forecast.main),
-
-            buildDeltaUpdate(simpleTemp, latest.simple.temp),
-            buildDeltaUpdate(fullTempMin, latest.full.temp.min),
-            buildDeltaUpdate(fullTempMax, latest.full.temp.max),
-            buildDeltaUpdate(fullFeelsLike, latest.full.feelslike),
-            buildDeltaUpdate(simplePressure, latest.simple.pressure),
-            buildDeltaUpdate(simpleHumidity, latest.simple.humidity !== null ? convert.toSignalK('%', latest.simple.humidity).value  : noVal),
-            buildDeltaUpdate(fullDewPoint, latest.full.dewpoint),
-            buildDeltaUpdate(fullUVIndex, latest.full.uvindex),
-            buildDeltaUpdate(fullClouds, latest.full.clouds),
-            buildDeltaUpdate(fullVisibility, latest.full.visibility),                       
-            buildDeltaUpdate(fullWindSpeed, latest.full.wind.speed),
-            buildDeltaUpdate(fullWinDir, latest.full.wind.dir !== null ? convert.toSignalK('°', latest.full.wind.dir).value : noVal),                       
-            buildDeltaUpdate(simpleRain, latest.simple.rain !== null ? latest.simple.rain : {}),
-            buildDeltaUpdate(simpleWeatherCode, latest.simple.weathercode)
-        ];
-        case 'meta-current': return [
-            buildDeltaUpdate(currentTemp, { units: "K" }),
-            buildDeltaUpdate(currentHumidity, { units: "ratio" }),
-            buildDeltaUpdate(currentPressure, { units: "Pa" })
-        ];
-        case 'meta-simple': return [
-            buildDeltaUpdate(simpleTemp, { units: "K" }),
-            buildDeltaUpdate(simpleHumidity, { units: "ratio" }),
-            buildDeltaUpdate(simplePressure, { units: "Pa" }),
-            buildDeltaUpdate(forecastTime, {}),
-            buildDeltaUpdate(simpleDescription, {}),
-            buildDeltaUpdate(simpleRain, {}),
-            buildDeltaUpdate(simpleWeatherCode, {})
-        ];
-        case 'meta-full': return [
-            buildDeltaUpdate(simpleTemp, { units: "K" }),
-            buildDeltaUpdate(fullTempMin, { units: "K" }),
-            buildDeltaUpdate(fullTempMax, { units: "K" }),
-            buildDeltaUpdate(fullFeelsLike, { units: "K" }),
-            buildDeltaUpdate(simpleHumidity, { units: "ratio" }),
-            buildDeltaUpdate(simplePressure, { units: "Pa" }),
-            buildDeltaUpdate(fullDewPoint, { units: "K" }),
-            buildDeltaUpdate(fullWindSpeed, { units: "m/s" }),
-            buildDeltaUpdate(fullWinDir, { units: "rad" }),
-            buildDeltaUpdate(forecastTime, {}),
-            buildDeltaUpdate(forecastSunrise, {}),
-            buildDeltaUpdate(forecastSunset, {}),
-            buildDeltaUpdate(simpleDescription, {}),
-            buildDeltaUpdate(fullIcon, {}),
-            buildDeltaUpdate(fullMain, {}),
-            buildDeltaUpdate(fullUVIndex, {}),
-            buildDeltaUpdate(fullClouds, { units: "ratio" }),
-            buildDeltaUpdate(fullVisibility, {}),
-            buildDeltaUpdate(simpleRain, {}),
-            buildDeltaUpdate(simpleWeatherCode, {})
-        ];
+        case 'values': {
+            update.push(buildDeltaUpdate(forecastTime, latest.forecast.time.value))
+            output.forEach(o => { if (o.val && typeof o.val.value!=='undefined') 
+                update.push(buildDeltaUpdate(o.path, o.val.value)) } 
+            );
+            break;
+        }
+        case 'meta': {
+            output.forEach(o => update.push(buildDeltaUpdate(o.path, o.val.hasOwnProperty('unit') ? 
+                { units: convert.toSignalK(o.val.unit, null).units, timeout: refreshRate / 1000, description: o.val.description } :
+                { timeout: refreshRate / 1000, description: o.val.description }
+             )));
+            break;
+            }
         default:
-            return [];
+            break;
     }
+    return update;
 }
 
 function buildDeltaUpdate(path, value) {
-    if (value!==null && typeof value==='object' && path!==simpleRain) 
-        value.timeout = refreshRate/1000;
     return {
         path: path,
         value: value
     }
 }
 
-function preLoad(pos, apikey, configtype, configoffset, configcurrent) {
-    owm.setLang('en');
-	// English - en, Russian - ru, Italian - it, Spanish - es (or sp),
-	// Ukrainian - uk (or ua), German - de, Portuguese - pt,Romanian - ro,
-	// Polish - pl, Finnish - fi, Dutch - nl, French - fr, Bulgarian - bg,
-	// Swedish - sv (or se), Chinese Tra - zh_tw, Chinese Sim - zh (or zh_cn),
-	// Turkish - tr, Croatian - hr, Catalan - ca
-
-    // set the coordinates (latitude,longitude)
-    latest.forecast.lat = (pos && pos!==null ? pos.value.latitude : null);
-    latest.forecast.lon = (pos && pos!==null ? pos.value.longitude : null);
-    latest.simple.description = 'connecting to openweathermap...';
-    if (offset!==undefined && offset!==null)
-    {
-        if (offset>48) { log("Forecast supported max. 48Hours!") }
-        offset = Math.min(configoffset, 47);
+function preLoad(apikey, config, param) {
+    // authorization
+    if (!apikey || apikey==='') {
+        log("API-Key not provided - OpenWeather forecasts deactivated!")
+        pluginError('Error: Invalid API Key')
+        return [];
     } 
-	// 'metric'  'internal'  'imperial'
- 	owm.setUnits('internal');
-	// check http://openweathermap.org/appid#get for get the APPID
-    owm.setAPPID(apikey); 
-    // return empty data set
-    publishCurrent = configcurrent
-    let initial = prepareUpdate('initial');
-    if (configtype!==undefined && configtype!==null)
-        publishType = configtype.split('-')[0].trim();
+    else
+        apiKey = apikey
+
+    // configuration
+    if (config && Array.isArray(config.split('-')) && config.split('-')[0]!=='')
+        publishType = config.split('-')[0].trim();
     else
         publishType = DEFAULTTYPE;
-    let meta = null
-    // add units to updates
-    if (initial) {
-        meta = publishCurrent ? prepareUpdate('meta-'+publishType).concat(prepareUpdate('meta-current')) : prepareUpdate('meta-'+publishType);
-    }
-    if (pos && pos!==null)
-        onPositionUpdate(pos.value);
 
-    return { "update": initial, "meta": meta }
+    for (const key of Object.keys(latest).filter(k => latest[k]!==null && latest[k].hasOwnProperty('simple')))
+        for (const o of Object.keys(latest[key]).filter(o => o!=='simple'))
+            if (latest[key][o].hasOwnProperty('path') && latest[key][o].path!==null && 
+               (latest[key].simple===true || publishType==='full'))
+                output.push({ path: latest[key][o].path, val: {
+                    value: latest[key][o].value,
+                    unit: latest[key][o].unit,
+                    description: latest[key][o].description
+                } });
+
+    if (param.current || true)
+        for (const o of Object.keys(latest.current))
+            if (latest.current[o].hasOwnProperty('path') && latest.current[o].path!==null)
+                output.push({ path: latest.current[o].path, val: {
+                    value: latest.current[o].value,
+                    unit: latest.current[o].unit,
+                    description: latest.current[o].description
+                } });
+    latest.current.publish = param.current;
+
+    // other parameters
+    if (param && param.offset!==undefined && param.offset!==null)
+        {
+            if (param.offset>47) { log("Offset shall not exceed max. 48 hours!") }
+            offset = param.offset<=0 ? 1 : Math.min(param.offset, 47);
+        }
+        if (param && param.horizon!==undefined && param.horizon!==null)
+        {
+            if (param.horizon>24*4) { log("Forecast only supports max. 4 days!") }
+            horizon = { 
+                hours: param.horizon<=0 ? 8 : Math.min(Math.max(param.offset+1, param.horizon), 24*4),
+                unit: 'h'
+            }
+        }
+    return prepareUpdate('meta');
 }
 
 function lastUpdateWithin(interval) {
-    return latest.update !== null ? (Date.now() - latest.update) <= interval : false;
+    return latest && latest.hasOwnProperty('update') && 
+        latest.update!==null ? (Date.now() - latest.update) <= interval : false;
 }
 
 function isValidPosition(lat, lon) {
-    return (lat!==null&&lon!==null && lat!==undefined&&lon!==undefined);
+    return lat && lon && lat!==null && lon!==null &&
+        !isNaN(lat) && lat>=-90 && lat <=90 && 
+        !isNaN(lon) && lon>=-180 && lon<=180;
 }
 
 module.exports = {
@@ -412,11 +431,13 @@ module.exports = {
     preLoad,
     onDeltasUpdate,
 
-    init: function(deltahandler, getVal, loghandler) {
-        send = deltahandler;
-        log = loghandler;
-        latest.update = null;
-        let timerId = null;
+    init: function(msgHandler, getVal, stateHandlers, logHandler) {
+        sendVal = msgHandler
+        pluginStatus = stateHandlers.status
+        pluginError = stateHandlers.error
+        log = logHandler     
+        latest.update = null
+        let timerId = null
         if (refreshRate) {
             timerId = setInterval(() => {
                 if (!lastUpdateWithin(refreshRate)) {

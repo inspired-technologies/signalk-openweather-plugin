@@ -27,8 +27,9 @@ module.exports = function (app) {
     let timerId = null;
     plugin.start = function (options, restartPlugin) {
 
-        app.debug('Plugin started');
-        timerId = ow.init(sendDelta, app.getSelfPath, log);
+        app.debug('Plugin starting ...');
+        app.setPluginStatus('Initializing');
+        timerId = ow.init(sendDelta, app.getSelfPath, { status: app.setPluginStatus, error: app.setPluginError }, app.debug);
 
         let localSubscription = {
             context: 'vessels.self',
@@ -44,20 +45,25 @@ module.exports = function (app) {
             delta => ow.onDeltasUpdate(delta)
         );
 
-        let delta = ow.preLoad(app.getSelfPath('navigation.position'), options["apikey"], options["type"], options["offset"], options["current"])
+        /* let delta = ow.preLoad(app.getSelfPath('navigation.position'), options["apikey"], options["type"], options["offset"], options["current"])
         if (delta)
         {
             sendDelta(delta.update)
             sendMeta(delta.meta)
-        }
-
+        } */
+        let meta = ow.preLoad(options["apikey"], options["type"], 
+            { horizon: options["horizon"] || 23, offset: options["offset"] || 1, current: options["current"] || false } )
+        if (meta.length>0)
+            sendMeta(meta)
+        app.debug('Plugin initialized.');
     };
 
     plugin.stop = function () {
+        app.debug('Plugin stopping...');
         unsubscribes.forEach(f => f());
         if (timerId!==null) clearInterval(timerId);
         unsubscribes = [];
-        app.debug('Plugin stopped');
+        app.debug('Plugin stopped.');
     };
 
     plugin.schema = {
@@ -77,10 +83,16 @@ module.exports = function (app) {
             enum: ['simple - temp, humidity, pressure, desc, rain, weathercode', 'full - complete openweathermap json'],
             default: 'simple'
           },
+          horizon: {
+            type: 'number',
+            title: 'Forecast Horizon',
+            description: 'Time horizon for which the forecast must be computed (in hours, max. 48)',
+            default: 24
+          },          
           offset: {
             type: 'number',
             title: 'Forecast offset to localtime',
-            description: '0 = current, otherwise next full hour within <offset> hours (max. 47)',
+            description: 'Publish offset from localtime (full next hour within <offset> hours, max. see above)',
             default: 1
           },
           current: {
@@ -115,8 +127,6 @@ module.exports = function (app) {
             ]   
         })
     }
-
-    function log(msg) { app.debug(msg); }
 
     return plugin;
 };

@@ -51,70 +51,102 @@ function toSeaLevel (pressure, elevation, temperature) {
 }
 
 // converts to SignalK-Units
-function toSignalK(units, value) {
-    let skUnits
-    if ( units === '%' ) {
-        value = value / 100
-        skUnits = 'ratio'
-    } else if ( units === '°C' || units === 'deg' ) {
-        value = value + 273.15
-        skUnits = 'K'
-    } else if ( units === '°F' ) {
-        value = (value - 32) * (5/9) + 273.15
-        skUnits = 'K'    
-    } else if ( units === 'kmh' ) {
-        value = value / 3.6
-        skUnits = "m/s"
-    } else if ( units === 'm s-1' ) {
-        value = value * 1.0
-        skUnits = "m/s"
-    } else if ( units === 'kn' ) {
-        value = value / 1.943844
-        skUnits = "m/s"
-    } else if ( units.includes('Bft') ) {
-        value = fromBeaufort(value, (units==='BftMin' ? 'min' : units==='BftMax' ? 'max' : ''))
-        skUnits = "m/s"
-    } else if ( units === '°' || units === 'degrees' ) {
-        value = value * (Math.PI/180.0)
-        skUnits = 'rad'
-    } else if ( units === 'Pa' ) {
-        value = value * 1.0
-        skUnits = "Pa"
-    } else if ( units === 'hPa' || units=== 'mbar' ) {
-        value = value * 100
-        skUnits = "Pa"
-    } else if ( units === 'km' ) {
-        value = value * 1000
-        skUnits = "m"
-    } else if ( units === 'nm' ) {
-        value = value * 1852
-        skUnits = "m"
-    } else if ( units === 'm' ) {
-        value = value * 1.0
-        skUnits = "m"
-    } else if ( units === 'mm' ) {
-        value = value * 1.0
-        skUnits = "mm"
-    } else if ( units === 'J kg-1' ) {
-        value = value * 1.0
-        skUnits = "J/kg"
-    } else if ( units === 'kg m-2 s-1' ) {
-        value = value * 1.0
-        skUnits = "mm/s"
-    } else if ( units === 'unixdate' ) {
-        value = new Date(value * 1000).toISOString()
-        skUnits = ""
-    } else if ( units === 'geoJson' ) {
-        value = { latitude: value[1], longitude: value[0] }
-        skUnits = ""
-    } else if ( units === 'latLng' ) {
-        value = { latitude: value[0], longitude: value[1] }
-        skUnits = ""
+function toSignalK(unit, value) {
+    let skUnit
+    switch (unit)
+    {
+        case '%':
+            value = value / 100
+            skUnit = 'ratio'
+            break;
+        case '°C':
+        case 'deg':
+            value = value + 273.15
+            skUnit = 'K'
+            break;
+        case '°F':
+            value = (value - 32) * (5/9) + 273.15
+            skUnit = 'K'    
+            break;
+        case 'kmh':
+            value = value / 3.6
+            skUnit = "m/s"
+            break;
+        case 'm s-1':
+            value = value * 1.0
+            skUnit = "m/s"
+            break;
+        case 'kn':
+            value = value / 1.943844
+            skUnit = "m/s"
+            break;
+        case unit.includes('Bft'):
+            value = fromBeaufort(value, (unit==='BftMin' ? 'min' : unit==='BftMax' ? 'max' : ''))
+            skUnit = "m/s"
+            break;
+        case '°':
+        case 'degrees':    
+            value = value * (Math.PI/180.0)
+            skUnit = 'rad'
+            break;
+        case 'Pa':
+            value = value * 1.0
+            skUnit = "Pa"
+            break;
+        case 'hPa':
+        case 'mbar':
+            value = value * 100
+            skUnit = "Pa"
+            break;
+        case 'km':
+            value = value * 1000
+            skUnit = "m"
+            break;
+        case 'nm':
+            value = value * 1852
+            skUnit = "m"
+            break;
+        case 'm':
+            value = value * 1.0
+            skUnit = "m"
+            break;
+        case 'mm':
+            value = value * 1.0
+            skUnit = "mm"
+            break;
+        case 'J kg-1':
+            value = value * 1.0
+            skUnit = "J/kg"
+            break;
+        case 'kg m-2 s-1':
+            value = value * 1.0
+            skUnit = "mm/s"    
+            break;
+        case 'string':
+            value = value
+            skUnit = "" 
+            break;
+        case 'unixdate':
+            value = new Date(value * 1000).toISOString()
+            skUnit = ""   
+            break;
+        case 'geoJson':
+            value = { latitude: value[1], longitude: value[0] }
+            skUnit = ""   
+            break;
+        case 'latLng':
+            value = { latitude: value[0], longitude: value[1] }
+            skUnit = ""    
+            break;
+        default:
+            value = value * 1.0
+            skUnit = unit
+        break;                                      
     }
-    return { value: value, units: skUnits }
+    return { value: value, units: skUnit }
 }
 
-// converts from SignalK-Units
+// converts to Target as specified
 function toTarget(skunit, value, target, precision) {
     let unit
     if ( target==='geoJson' || target==='latLng' ) {
@@ -133,71 +165,118 @@ function toTarget(skunit, value, target, precision) {
         else
             value = null
         unit = target
-    } else if ( skunit === 'ratio' && ( target===undefined || target==='%' ) ) {
-        value = value * 100.0
-        unit = target===undefined ? '' : '%'
-    } else if ( skunit === 'ratio' && ( target==='decimal' || target==='number' ) ) {
-        value = value * 1.0
-        unit = ''
-    } else if ( skunit === 'K' && (target===undefined) ) {
-        value = value
-        unit = 'K'
-    } else if ( skunit === 'K' && (target==="°C" || target==="deg") ) {
-        value = value - 273.15
-        unit = target
-    } else if ( skunit === 'K' && (target==='°F') ) {
-        value = (value - 273.15) * (9/5) + 32
-        unit = target
-    } else if ( skunit === 'm/s' && (target==='undefined') ) {
-        unit = "m/s"
-    } else if ( skunit === 'm/s' && (target==='kn') ) {
-        value = value * 1.943844
-        unit = target
-    } else if ( skunit === 'm/s' && (target==='km') ) {
-        value = value * 3.6
-        unit = target
-    } else if ( skunit === 'm/s' && (target==='kn') ) {
-        value = value * 1.943844
-        unit = target
-    } else if ( skunit === 'm/s' && (target==='Bft') ) {
-        value = toBeaufort(value)
-        unit = target
-    } else if ( skunit ==='rad' && (target === '°' || target==='deg' || target==='') ) {
-        value = value * (180.0/Math.PI)
-        unit = '°'
-    } else if ( skunit === 'Pa' && (target===undefined) ) {
-        unit = 'Pa'
-    } else if ( skunit === 'Pa' && (target==='hPa' || target==='mbar' ) ) {
-        value = value / 100
-        unit = target
-    } else if ( skunit === 'Pa' && (target ==='atm') ) {
-        value = value / 101325
-        unit = target        
-    } else if ( skunit === 'm' && (target ==='m' || target === undefined) ) {
-        value = value * 1.0
-        unit = 'm'
-    } else if ( skunit === 'm' && target === 'km' ) {
-        value = value / 1000
-        unit = 'km'
-    } else if ( skunit === 'm' && target === 'nm' ) {
-        value = value / 1852
-        unit ='nm'
-    } else if ( skunit === 'dt' && (target === 'ms' || target === 'unixdate' )) {
-        value = (new Date(value).getTime())
-        unit ='ms'
-    } else if ( skunit === 'dt' && target === 's' ) {
-        value = (new Date(value).getTime())/1000
-        unit ='s'
-    } else if ( skunit === '{obj}' && target!==undefined && value.hasOwnProperty(target) ) {
-        unit = value[target].hasOwnProperty('unit') ? value[target].unit : ''
-        value = value[target].hasOwnProperty('value') ? value[target].value : value[target]
     } else {
-        unit = skunit
+        switch (skunit)
+        {
+            case 'ratio':
+                if (!target || target==='%') {
+                    value = value * 100.0
+                    unit = target===undefined ? '' : '%'
+                } else if (target==='decimal' || target==='number') {
+                    value = value * 1.0
+                    unit = ''
+                }
+                break;
+            case 'K':
+                if (!target) {
+                    value = value
+                    unit = 'K'
+                } else if (target==="°C" || target==="deg") {
+                    value = value - 273.15
+                    unit = target
+                } else if (target==='°F') {
+                    value = (value - 273.15) * (9/5) + 32
+                    unit = target
+                }
+                break;
+            case 'm/s':
+                if (!target) {
+                    unit = "m/s"
+                } else if (target==='kn') {
+                    value = value * 1.943844
+                    unit = target
+                } else if (target==='km') {
+                    value = value * 3.6
+                    unit = target
+                } else if (target==='kn') {
+                    value = value * 1.943844
+                    unit = target
+                } else if (target==='Bft') {
+                    value = toBeaufort(value)
+                    unit = target        
+                }
+                break;
+            case 'rad':
+                if (!target || target==='°' || target==='deg' || target==='') {
+                    value = value * (180.0/Math.PI)
+                    unit = '°'   
+                }                    
+                break;
+            case 'Pa':
+                if (!target) {
+                    unit = 'Pa'
+                } else if (target==='hPa' || target==='mbar') {
+                    value = value / 100
+                    unit = target
+                } else if (target ==='atm') {
+                    value = value / 101325
+                    unit = target
+                }
+                break;
+            case 'm':
+                if (!target || target === 'm') {
+                    value = value * 1.0
+                    unit = 'm'
+                } else if (target === 'km') {
+                    value = value / 1000
+                    unit = 'km'
+                } else if (target === 'nm') {
+                    value = value / 1852
+                    unit ='nm'
+                }
+                break;
+            case 'dt':
+                if (target === 'ms' || target === 'unixdate' ) {
+                    value = (new Date(value).getTime())
+                    unit ='ms'
+                } else if (target === 's' ) {
+                    value = (new Date(value).getTime())/1000
+                    unit ='s'
+                } 
+                break;
+            case 's':
+                if (target === 'ms' ) {
+                    value = value * 1000
+                    unit ='ms'
+                }
+                else if (target === 's' || target === 'sec' ) 
+                    unit = target
+                else if (target === 'm' || target === 'min' ) {
+                    value = value / 60
+                    unit = target
+                } else if (target === 'h' || target === 'hour' ) {
+                    value = value / 3600
+                    unit = target
+                } else if (target === 'd' || target === 'day' ) {
+                    value = value / 3600 / 24
+                    unit = target
+                } 
+            break;                
+            case '{obj}':
+                if (target && value.hasOwnProperty(target) ) {
+                    unit = value[target].hasOwnProperty('unit') ? value[target].unit : ''
+                    value = value[target].hasOwnProperty('value') ? value[target].value : value[target]
+                }                 
+                break;
+            default:
+                unit = skunit
+                break;
+        }
     }
     if (typeof value==='number' && target!=='geoJson' && target!=='latLng' && typeof precision==='number')
         value = parseFloat(value.toFixed(precision))
-    return { value: value, units: unit }
-}
+    return { value: value, units: unit }  
+}   
 
 function toDegreesMinutesAndSeconds(coordinate) {
     var absolute = Math.abs(coordinate);
