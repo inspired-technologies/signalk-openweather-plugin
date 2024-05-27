@@ -97,8 +97,8 @@ module.exports = function (app) {
           },
           current: {
             type: 'boolean',
-            title: 'Publish 0h offset forecast as current',
-            description: 'turn this on, only if no other signals on the network (eg. BME280, RUUVI)',
+            title: "Publish current on the 'environment' path",
+            description: "turn this on, only if no other signals for 'outside' on the network (eg. BME280, RUUVI)",
             default: false
           },
         }

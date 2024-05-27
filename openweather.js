@@ -16,8 +16,9 @@ const axios = require ('axios')
 const convert = require ('./skunits')
 const ONECALLAPI = 'https://api.openweathermap.org/data/3.0/onecall'
 const DEFAULTTYPE = 'simple'
+const CURRENTPATH = 'outside'
 let log
-let logwarning = true
+// let logwarning = true
 let sendVal
 let pluginStatus
 let pluginError
@@ -26,8 +27,8 @@ let variables = []
 let output = []
 let meta
 let horizon = {
-    hours: 1,
-    unit: 'd'
+    hours: 48,
+    unit: 'h'
 }
 let offset = 1
 
@@ -43,43 +44,48 @@ const subscriptions = [
 ];
 
 // basic Path definitions
-const pathCurrent = "environment.outside.";
-const currentSunrise = pathCurrent+'sunlight.times.sunrise'
-const currentSunset = pathCurrent+'sunlight.times.sunset'
+const pathEnvironment = 'environment.';
+const pathCurrent = `environment.${CURRENTPATH}.`;
+const currentSunrise = pathEnvironment+'sunlight.times.sunrise'
+const currentSunset = pathEnvironment+'sunlight.times.sunset'
 const currentTemp = pathCurrent+'temperature';
-const currentFeelsLike = pathCurrent+'feelsLike';
+const currentFeelsLike = pathCurrent+'temperature.feelslike';
 const currentPressure = pathCurrent+'pressure';
 const currentHumidity = pathCurrent+'relativeHumidity';
-const currentDewPoint = pathCurrent+'dewPoint';
-const currentClouds = pathCurrent+'clouds';
-const currentUVI = pathCurrent+'uvindex';
-const currentVisibility = pathCurrent+'visbility';
+const currentDewPoint = pathCurrent+'temperature.dewpoint';
+const currentClouds = pathCurrent+'weather.clouds';
+const currentUVI = pathCurrent+'weather.uvindex';
+const currentVisibility = pathCurrent+'weather.visbility';
 const currentWindSpeed = pathCurrent+'wind.speed';
 const currentWindDir = pathCurrent+'wind.direction';
 const currentWindGust = pathCurrent+'wind.gust';
 const currentRain = pathCurrent+'precipitation.rain';
 const currentSnow = pathCurrent+'precipitation.snow';
-const currentMain = pathCurrent+'weather.main';
-const currentDesc = pathCurrent+'weather.desc';
+const currentMain = pathCurrent+'weather';
+const currentWeather = pathCurrent+'weather.code';
+const currentDesc = pathCurrent+'description';
 const currentIcon = pathCurrent+'weather.icon';
 const pathPrefix = "environment.forecast.";
 const forecastTime = pathPrefix+"time";
 const forecastPressure = pathPrefix+'pressure';
 const forecastTemperature = pathPrefix+'temperature';
-const forecastFeelsLike = pathPrefix+'feelsLike';
+const forecastTempMin = pathPrefix+'temperature.minimum';
+const forecastTempMax = pathPrefix+'temperature.maximum';
+const forecastFeelsLike = pathPrefix+'temperature.feelslike';
 const forecastHumidity = pathPrefix+'relativeHumidity';
 const forecastPrecipProp = pathPrefix+'precipitation.probability';
 const forecastPrecipRain = pathPrefix+'precipitation.rain';
 const forecastPrecipSnow = pathPrefix+'precipitation.snow';
-const forecastDewPoint = pathPrefix+'dewPoint';
-const forecastClouds = pathPrefix+'clouds';
-const forecastUVI = pathPrefix+'uvindex';
-const forecastVisibility = pathPrefix+'visibility';
+const forecastDewPoint = pathPrefix+'temperature.dewpoint';
+const forecastClouds = pathPrefix+'weather.clouds';
+const forecastUVI = pathPrefix+'weather.uvindex';
+const forecastVisibility = pathPrefix+'weather.visibility';
 const forecastWindSpeed = pathPrefix+'wind.speed';
 const forecastWindDir = pathPrefix+'wind.direction';
 const forecastWindGust = pathPrefix+'wind.gust';
-const forecastMain = pathPrefix+'weather.main';
-const forecastDesc = pathPrefix+'weather.desc';
+const forecastMain = pathPrefix+'weather';
+const forecastWeather = pathPrefix+'weather.code';
+const forecastDesc = pathPrefix+'description';
 const forecastIcon = pathPrefix+'weather.icon';
 
 const latest = {
@@ -106,53 +112,55 @@ const latest = {
         rain : { path: currentRain, value: null, unit: 'mm/h', key: 'current.rain.1h', description: 'Precipitation, where available' },
         snow : { path: currentSnow, value: null, unit: 'mm/h', key: 'current.snow.1h', description: 'Precipitation, where available' },
         weather : {
-            id: { path: null, value: null, unit: '', key: '0:weather.id', description: 'Weather condition id' },
+            id: { path: currentWeather, value: null, unit: '', key: '0:weather.id', description: 'Weather condition id' },
             main: { path: currentMain, value: null, unit: 'string', key: '0:weather.main', description: 'Group of weather parameters (Rain, Snow etc.)' },
             desc: { path: currentDesc, value: null, unit: 'string', key: '0:weather.description', description: 'Weather condition within the group. Output available in multiple languages' },
             icon: { path: currentIcon, value: null, unit: 'string', key: '0:weather.icon', description: 'Weather icon id' },
         }
     },
     pressure: {
-        simple: true,
+        simple: "sealevel",
         sealevel : { path: forecastPressure, value: null, unit: 'hPa', key: 'pressure', description: 'Atmospheric pressure on the sea level' },
     },
     temperature: {
-        simple: true,
+        simple: "outside",
         outside : { path: forecastTemperature, value: null, unit: 'K', key: 'temp', description: 'Temperature' },
         feelslike : { path: forecastFeelsLike, value: null, unit: 'K', key: 'feels_like', description: 'Temperature, accounts for the human perception of weather' },
+        minimum : { path: forecastTempMin, value: null, unit: 'K', key: 'min:temp', description: 'Minimum temperature over forecast horizon' },
+        maximum : { path: forecastTempMax, value: null, unit: 'K', key: 'max:temp', description: 'Maximum temperature over forecast horizon' },
     },
     humidity: {
-        simple: true,
+        simple: "relative",
         relative : { path: forecastHumidity, value: null, unit: 'ratio', key: 'humidity', description: 'Humidity' },
     },
     precipitation: {
-        simple: true,
+        simple: "rain",
         pop : { path: forecastPrecipProp, value: null, unit: 'ratio', key: 'pop', description: 'Probability of precipitation. Values vary between 0 and 1, where 0 is equal to 0%, 1 is equal to 100%' },
         rain : { path: forecastPrecipRain, value: null, unit: 'mm/s', key: 'rain.1h', description: 'Precipitation, mm/h - where available' },
         snow : { path: forecastPrecipSnow, value: null, unit: 'mm/s', key: 'snow.1h', description: 'Precipitation, mm/h - where available' },         
     },
     wind: {
-        simple: false,
+        simple: null,
         speed : { path: forecastWindSpeed, value: null, unit: 'm/s', key: 'wind_speed', description: 'Wind speed' },
         direction : { path: forecastWindDir, value: null, unit: 'degrees', key: 'wind_deg', description: 'Wind direction, angle counting clockwise from the North' },
         gust : { path: forecastWindGust, value: null, unit: 'm/s', key: 'wind_gust', description: 'Gust wind speed' },
     },
     atmospherics: {
-        simple: false,
+        simple: null,
         dewpoint : { path: forecastDewPoint, value: null, unit: 'K', key: 'dew_point', description: 'Atmospheric temperature (varying according to pressure and humidity) below which water droplets begin to condense and dew can form' },
         uvindex : { path: forecastUVI, value: null, unit: '', key: 'uvi', description: 'UV index' },
         clouds : { path: forecastClouds, value: null, unit: 'ratio', key: 'clouds', description: 'Cloudiness' },
         visibility : { path: forecastVisibility, value: null, unit: 'm', key: 'visibility', description: 'Average visibility, metres. The maximum value of the visibility is 10km' },
     },
     weather : {
-        simple: false,
-        id: { path: null, value: null, unit: 'string', key: '0:weather.id', description: 'Weather conidition id' },
+        simple: "id",
+        id: { path: forecastWeather, value: null, unit: 'string', key: '0:weather.id', description: 'Weather condition id' },
         main: { path: forecastMain, value: null, unit: 'string', key: '0:weather.main', description: 'Group of weather parameters (Rain, Snow etc.)' },
         desc: { path: forecastDesc, value: null, unit: 'string', key: '0:weather.description', description: 'Weather condition within the group. Output available in multiple languages' },
         icon: { path: forecastIcon, value: null, unit: 'string', key: '0:weather.icon', description: 'Weather icon id' },
     },
     alerts : {
-        simple: false,
+        simple: null,
         sender: { path: null, value: null, unit: 'string', key: 'alerts.sender_name', description: 'Name of the alert source' },
         event: { path: null, value: null, unit: 'string', key: 'alerts.event', description: 'Alert event name' },
         start: { path: null, value: null, unit: 'unixdate', key: 'alerts.start', description: 'UTC start of the alert' },
@@ -272,25 +280,46 @@ async function onPositionUpdate(value) {
                                         let lookup = response.data.hourly[offset][key.split(':')[1].split('.')[0]][key.split(':')[0]]
                                         latest[m][o].value = convert.toSignalK(latest[m][o].unit, lookup[key.split('.')[1]])               
                                     }
+                                else if (key.includes(':') && (key.split(':')[0]==='min' || key.split(':')[0]==='max' || key.split(':')[0]==='avg') &&
+                                        response.data.hourly[0].hasOwnProperty(key.split(':')[1]))
+                                    {
+                                        let calc = null
+                                        if (key.split(':')[0]==='min')
+                                            calc = Math.min(...response.data.hourly.map(d => d[key.split(':')[1]]).slice(0, horizon.hours))
+                                        else if (key.split(':')[0]==='max')
+                                            calc = Math.max(...response.data.hourly.map(d => d[key.split(':')[1]]).slice(0, horizon.hours))
+                                        else if (key.split(':')[0]==='avg')
+                                            calc = Math.avg(...response.data.hourly.map(d => d[key.split(':')[1]]).slice(0, horizon.hours))
+                                        latest[m][o].value = convert.toSignalK(latest[m][o].unit, calc)
+                                    }
                                 else if (response.data.hourly[offset].hasOwnProperty(key))
                                     latest[m][o].value = convert.toSignalK(latest[m][o].unit, response.data.hourly[offset][key])
                             }                                            
                 }
 
-                let measures = Object.keys(latest).filter(k => latest[k]!==null && (k==='current' || latest[k].hasOwnProperty('simple')))
+                let measures = Object.keys(latest).filter(k => latest[k]!==null &&
+                    (k==='current' || latest[k].hasOwnProperty('simple')) &&  
+                    (publishType==='simple' ? latest[k].simple!==null : true))
                 output = []
                 for (const m of measures)
                     Object.keys(latest[m]).forEach(o => { 
-                        if (typeof latest[m][o]==='object' && latest[m][o].hasOwnProperty('key') && latest[m][o].path!==null)
-                            output.push({ path: latest[m][o].path, val: latest[m][o].value })
-                        else if (typeof latest[m][o]==='object' && !latest[m][o].hasOwnProperty('key'))
+                        if (publishType==='simple' && typeof latest[m][o]==='object' && latest[m][o].hasOwnProperty('key') && 
+                            latest[m][o].path!==null && latest[m].simple===o)
+                                output.push({ path: latest[m][o].path, val: latest[m][o].value })
+                        else if (publishType==='full' && typeof latest[m][o]==='object' &&  latest[m][o]!==null && 
+                            latest[m][o].hasOwnProperty('key') && latest[m][o].path!==null)
+                                output.push({ path: latest[m][o].path, val: latest[m][o].value })
+                        else if (publishType==='full' && typeof latest[m][o]==='object' && latest[m][o]!==null && 
+                            !latest[m][o].hasOwnProperty('key'))
                             for (const s of Object.keys(latest[m][o]))
                                 if (typeof latest[m][o][s]==='object' && latest[m][o][s].hasOwnProperty('key') && latest[m][o][s].path!==null)
                                     output.push({ path: latest[m][o][s].path, val: latest[m][o][s].value })
                             })
 
-                output.filter(o => o.path!==null && o.val!==null && o.val.value!==null).forEach(o => {
-                    let res = o.path.includes('outside') ? o.path.replace('environment.', '').split('.') : 
+                output.filter(o => o.path!==null && o.val!==null && o.val.value!==null)
+                .filter(o => !o.path.includes(CURRENTPATH) || o.path.includes(CURRENTPATH) && latest.current.publish)
+                .forEach(o => {
+                    let res = o.path.includes(CURRENTPATH) ? o.path.replace('environment.', '').split('.') : 
                               o.path.replace('environment.forecast.', '').split('.')
                     let val = result
                     for (i=0; i<res.length; i++)
@@ -336,14 +365,15 @@ function prepareUpdate(type) {
     let update = []
     switch (type) {
         case 'values': {
-            update.push(buildDeltaUpdate(forecastTime, latest.forecast.time.value))
-            output.forEach(o => { if (o.val && typeof o.val.value!=='undefined') 
-                update.push(buildDeltaUpdate(o.path, o.val.value)) } 
-            );
+            update.push(buildDeltaUpdate(forecastTime, (new Date(latest.forecast.time)).toISOString()))
+            output.filter(o => !o.path.includes(CURRENTPATH) || o.path.includes(CURRENTPATH) && latest.current.publish)
+            .forEach(o => { if (o.val && typeof o.val.value!=='undefined') 
+                update.push(buildDeltaUpdate(o.path, o.val.value)) 
+            });
             break;
         }
         case 'meta': {
-            output.forEach(o => update.push(buildDeltaUpdate(o.path, o.val.hasOwnProperty('unit') ? 
+            output.filter(o => o.val).forEach(o => update.push(buildDeltaUpdate(o.path, o.val.hasOwnProperty('unit') ? 
                 { units: convert.toSignalK(o.val.unit, null).units, timeout: refreshRate / 1000, description: o.val.description } :
                 { timeout: refreshRate / 1000, description: o.val.description }
              )));
@@ -378,25 +408,39 @@ function preLoad(apikey, config, param) {
     else
         publishType = DEFAULTTYPE;
 
-    for (const key of Object.keys(latest).filter(k => latest[k]!==null && latest[k].hasOwnProperty('simple')))
-        for (const o of Object.keys(latest[key]).filter(o => o!=='simple'))
-            if (latest[key][o].hasOwnProperty('path') && latest[key][o].path!==null && 
-               (latest[key].simple===true || publishType==='full'))
-                output.push({ path: latest[key][o].path, val: {
-                    value: latest[key][o].value,
-                    unit: latest[key][o].unit,
-                    description: latest[key][o].description
+    for (const m of Object.keys(latest).filter(k => latest[k]!==null && latest[k].hasOwnProperty('simple')))
+        for (const o of Object.keys(latest[m]).filter(o => o!=='simple'))
+            if (latest[m][o].hasOwnProperty('path') && latest[m][o].path!==null && latest[m][o].hasOwnProperty('key') && 
+               (latest[m].simple!==null || publishType==='full'))
+                output.push({ path: latest[m][o].path, val: {
+                    value: latest[m][o].value,
+                    unit: latest[m][o].unit,
+                    description: latest[m][o].description
                 } });
-
+            else if (!latest[m][o].hasOwnProperty('key') && (latest[m].simple!==null || publishType==='full')   )
+                for (const s of Object.keys(latest[m][o]).filter(k => k.path!==null))
+                    output.push({ path: latest[m][o][s].path, val: {
+                        value: latest[m][o][s].value,
+                        unit: latest[m][o][s].unit,
+                        description: latest[m][o][s].description
+                } });
+ 
     if (param.current || true)
         for (const o of Object.keys(latest.current))
-            if (latest.current[o].hasOwnProperty('path') && latest.current[o].path!==null)
+            if (latest.current[o].hasOwnProperty('path') && latest.current[o].hasOwnProperty('key') && latest.current[o].path!==null)
                 output.push({ path: latest.current[o].path, val: {
                     value: latest.current[o].value,
                     unit: latest.current[o].unit,
                     description: latest.current[o].description
                 } });
-    latest.current.publish = param.current;
+            else if (!latest.current[o].hasOwnProperty('key'))
+                for (const s of Object.keys(latest.current[o]).filter(k => k.path!==null))
+                    output.push({ path: latest.current[o][s].path, val: {
+                        value: latest.current[o][s].value,
+                        unit: latest.current[o][s].unit,
+                        description: latest.current[o][s].description
+                } });
+        latest.current.publish = param.current && output.map(o => o.path.includes(CURRENTPATH)).indexOf(true)!==-1;
 
     // other parameters
     if (param && param.offset!==undefined && param.offset!==null)
