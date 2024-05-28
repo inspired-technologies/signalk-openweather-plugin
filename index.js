@@ -45,14 +45,8 @@ module.exports = function (app) {
             delta => ow.onDeltasUpdate(delta)
         );
 
-        /* let delta = ow.preLoad(app.getSelfPath('navigation.position'), options["apikey"], options["type"], options["offset"], options["current"])
-        if (delta)
-        {
-            sendDelta(delta.update)
-            sendMeta(delta.meta)
-        } */
         let meta = ow.preLoad(options["apikey"], options["type"], 
-            { horizon: options["horizon"] || 23, offset: options["offset"] || 1, current: options["current"] || false } )
+            { horizon: options["horizon"] || 23, offset: options["offset"] || 1, current: options["current"] || false, partial: options["partial"] || undefined } )
         if (meta.length>0)
             sendMeta(meta)
         app.debug('Plugin initialized.');

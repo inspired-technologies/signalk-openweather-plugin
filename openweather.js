@@ -94,6 +94,7 @@ const latest = {
     position: { lat: null, lon: null },
     current: {
         publish: false,
+        partial: [],
         sunrise : { path: currentSunrise, value: null, unit: 'unixdate', key: 'sunrise', description: 'Sunrise time, UTC. For polar areas in midnight sun and polar night periods this parameter is not returned in the response' },
         sunset : { path: currentSunset, value: null, unit: 'unixdate', key: 'sunset', description: 'Sunset time, Unix, UTC. For polar areas in midnight sun and polar night periods this parameter is not returned in the response' },
         temperature : { path: currentTemp, value: null, unit: 'K', key: 'temp', description: 'Current temperature' },
@@ -204,7 +205,6 @@ async function onPositionUpdate(value) {
 
     if (!lastUpdateWithin(refreshRate) && isValidPosition(latest.position.lat, latest.position.lon))
     {
-        latest.update = Date.now();
         log(`OpenWeather Coordinates ${latest.position.lat},${latest.position.lon}`);
 
         let measures = '' 
@@ -234,7 +234,7 @@ async function onPositionUpdate(value) {
 
                 // update latest values from response.current
                 for (const o of Object.keys(latest.current))
-                    if (typeof latest.current[o]==='object' && !latest.current[o].hasOwnProperty('key')) 
+                    if (typeof latest.current[o]==='object' && !Array.isArray(latest.current[o]) && !latest.current[o].hasOwnProperty('key')) 
                         for (const sub of Object.keys(latest.current[o]))    
                         {
                             let key = latest.current[o][sub].key
@@ -246,7 +246,7 @@ async function onPositionUpdate(value) {
                             else if (response.data.current.hasOwnProperty(key))
                                 latest.current[o][sub].value = convert.toSignalK(latest.current[o][sub].unit, response.data.current[key])
                         }
-                    else if (typeof latest.current[o]==='object' && latest.current[o].hasOwnProperty('key')) {
+                    else if (typeof latest.current[o]==='object' && !Array.isArray(latest.current[o]) && latest.current[o].hasOwnProperty('key')) {
                         let key = latest.current[o].key
                         if (key.includes(':') && Array.isArray(response.data.current[key.split(':')[1].split('.')[0]]))
                             {
@@ -317,7 +317,9 @@ async function onPositionUpdate(value) {
                             })
 
                 output.filter(o => o.path!==null && o.val!==null && o.val.value!==null)
-                .filter(o => !o.path.includes(CURRENTPATH) || o.path.includes(CURRENTPATH) && latest.current.publish)
+                .filter(o => !o.path.includes(CURRENTPATH) || latest.current.publish && o.path.includes(CURRENTPATH) || 
+                    latest.current.partial.length>0 && o.path.includes(CURRENTPATH) && 
+                        (latest.current.partial.indexOf(o.path.split('.')[o.path.split('.').length===4 ? 3 : 2])!==-1))
                 .forEach(o => {
                     let res = o.path.includes(CURRENTPATH) ? o.path.replace('environment.', '').split('.') : 
                               o.path.replace('environment.forecast.', '').split('.')
@@ -333,9 +335,12 @@ async function onPositionUpdate(value) {
                         else
                             val = val[res[i]]
 
-                });
+                })
                 log(result);
                 sendVal(prepareUpdate('values'))
+            })
+            .finally(() => {
+                latest.update = Date.now();
             })
             .catch( (error) => {
                 if (error.hasOwnProperty('code') && error.code==="ERR_BAD_REQUEST" && error.response.status===401) {
@@ -366,7 +371,9 @@ function prepareUpdate(type) {
     switch (type) {
         case 'values': {
             update.push(buildDeltaUpdate(forecastTime, (new Date(latest.forecast.time)).toISOString()))
-            output.filter(o => !o.path.includes(CURRENTPATH) || o.path.includes(CURRENTPATH) && latest.current.publish)
+            output.filter(o => !o.path.includes(CURRENTPATH) || latest.current.publish && o.path.includes(CURRENTPATH) || 
+                latest.current.partial.length>0 && o.path.includes(CURRENTPATH) && 
+                    latest.current.partial.indexOf(o.path.split('.')[o.path.split('.').length===4 ? 3 : 2])!==-1)
             .forEach(o => { if (o.val && typeof o.val.value!=='undefined') 
                 update.push(buildDeltaUpdate(o.path, o.val.value)) 
             });
@@ -424,9 +431,11 @@ function preLoad(apikey, config, param) {
                         unit: latest[m][o][s].unit,
                         description: latest[m][o][s].description
                 } });
- 
-    if (param.current || true)
-        for (const o of Object.keys(latest.current))
+
+
+    latest.current.partial = []
+    if (param.current || param.partial)
+        for (const o of Object.keys(latest.current)) {
             if (latest.current[o].hasOwnProperty('path') && latest.current[o].hasOwnProperty('key') && latest.current[o].path!==null)
                 output.push({ path: latest.current[o].path, val: {
                     value: latest.current[o].value,
@@ -439,7 +448,14 @@ function preLoad(apikey, config, param) {
                         value: latest.current[o][s].value,
                         unit: latest.current[o][s].unit,
                         description: latest.current[o][s].description
-                } });
+                } })
+            if (param.partial.split(',').indexOf(o)!==-1)
+                if (latest.current[o].hasOwnProperty('key'))
+                    latest.current.partial.push(o)
+                else
+                    for (const s of Object.keys(latest.current[o])) 
+                        latest.current.partial.push(s)
+        }
         latest.current.publish = param.current && output.map(o => o.path.includes(CURRENTPATH)).indexOf(true)!==-1;
 
     // other parameters
