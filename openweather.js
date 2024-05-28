@@ -132,7 +132,7 @@ const latest = {
     },
     humidity: {
         simple: "relative",
-        relative : { path: forecastHumidity, value: null, unit: 'ratio', key: 'humidity', description: 'Humidity' },
+        relative : { path: forecastHumidity, value: null, unit: '%', key: 'humidity', description: 'Humidity' },
     },
     precipitation: {
         simple: "rain",
@@ -150,7 +150,7 @@ const latest = {
         simple: null,
         dewpoint : { path: forecastDewPoint, value: null, unit: 'K', key: 'dew_point', description: 'Atmospheric temperature (varying according to pressure and humidity) below which water droplets begin to condense and dew can form' },
         uvindex : { path: forecastUVI, value: null, unit: '', key: 'uvi', description: 'UV index' },
-        clouds : { path: forecastClouds, value: null, unit: 'ratio', key: 'clouds', description: 'Cloudiness' },
+        clouds : { path: forecastClouds, value: null, unit: '%', key: 'clouds', description: 'Cloudiness' },
         visibility : { path: forecastVisibility, value: null, unit: 'm', key: 'visibility', description: 'Average visibility, metres. The maximum value of the visibility is 10km' },
     },
     weather : {
