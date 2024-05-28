@@ -233,7 +233,7 @@ async function onPositionUpdate(value) {
                 log(`Forecast received for ${new Date(latest.forecast.time).toString()}`)
 
                 // update latest values from response.current
-                for (const o of Object.keys(latest.current))
+                for (const o of Object.keys(latest.current)) 
                     if (typeof latest.current[o]==='object' && !Array.isArray(latest.current[o]) && !latest.current[o].hasOwnProperty('key')) 
                         for (const sub of Object.keys(latest.current[o]))    
                         {
@@ -251,10 +251,17 @@ async function onPositionUpdate(value) {
                         if (key.includes(':') && Array.isArray(response.data.current[key.split(':')[1].split('.')[0]]))
                             {
                                 let lookup = response.data.current[key.split(':')[1].split('.')[0]][key.split(':')[0]]
-                                latest.current[o].value = convert.toSignalK(latest.current[o].unit, lookup[key.split('.')[1]])                      
+                                latest.current[o].value = convert.toStationAltitude(latest.current[o].unit, lookup[key.split('.')[1]])                      
+                            }
+                        else if (o==='pressure' && response.data.current.hasOwnProperty(key))
+                            {                               
+                                latest.current[o].value = convert.toSignalK(latest.current[o].unit, response.data.current[key])
+                                if (latest.current[o].value)
+                                    latest.current[o].value.value = convert.toSeaLevel(latest.current[o].value.value / 100, 
+                                        latest.altitude.elevation, latest.current.temperature.value.value || 273.15) * 100
                             }
                         else if (response.data.current.hasOwnProperty(key))
-                            latest.current[o].value = convert.toSignalK(latest.current[o].unit, response.data.current[key])
+                            latest.current[o].value = convert.toSignalK(latest.current[o].unit, response.data.current[key])                            
                     }
 
                 // update latest values from response.hourly by offset                    
@@ -291,6 +298,13 @@ async function onPositionUpdate(value) {
                                         else if (key.split(':')[0]==='avg')
                                             calc = Math.avg(...response.data.hourly.map(d => d[key.split(':')[1]]).slice(0, horizon.hours))
                                         latest[m][o].value = convert.toSignalK(latest[m][o].unit, calc)
+                                    }
+                                else if (o==='sealevel' && response.data.current.hasOwnProperty(key))
+                                    {                               
+                                        latest[m][o].value = convert.toSignalK(latest[m][o].unit, response.data.hourly[offset][key])
+                                        if (latest[m][o].value)
+                                            latest[m][o].value.value = convert.toStationAltitude(latest[m][o].value.value / 100, latest.altitude.elevation, 
+                                                latest.temperature.outside.value!==null ? latest.temperature.outside.value.value : latest.current.temperature.value.value || 273.15) * 100
                                     }
                                 else if (response.data.hourly[offset].hasOwnProperty(key))
                                     latest[m][o].value = convert.toSignalK(latest[m][o].unit, response.data.hourly[offset][key])
