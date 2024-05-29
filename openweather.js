@@ -491,7 +491,7 @@ function preLoad(apikey, config, param) {
 
 function lastUpdateWithin(interval) {
     return latest && latest.hasOwnProperty('update') && 
-        latest.update!==null ? (Date.now() - latest.update) <= interval : false;
+        latest.update!==null ? (Date.now() - latest.update + 5*oneMinute) < interval : false;
 }
 
 function isValidPosition(lat, lon) {
