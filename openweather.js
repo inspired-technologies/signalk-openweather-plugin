@@ -463,7 +463,7 @@ function preLoad(apikey, config, param) {
                         unit: latest.current[o][s].unit,
                         description: latest.current[o][s].description
                 } })
-            if (param.partial.split(',').indexOf(o)!==-1)
+            if (param.partial && param.partial.split(',').indexOf(o)!==-1)  
                 if (latest.current[o].hasOwnProperty('key'))
                     latest.current.partial.push(o)
                 else
