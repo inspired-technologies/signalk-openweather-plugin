@@ -110,8 +110,8 @@ const latest = {
             direction : { path: currentWindDir, value: null, unit: 'degrees', key: 'wind_deg', description: 'Wind direction, angle counting clockwise from the North' },
             gust : { path: currentWindGust, value: null, unit: 'm/s', key: 'wind_gust', description: 'Gust wind speed' },
         },
-        rain : { path: currentRain, value: null, unit: 'mm/h', key: 'current.rain.1h', description: 'Precipitation, where available' },
-        snow : { path: currentSnow, value: null, unit: 'mm/h', key: 'current.snow.1h', description: 'Precipitation, where available' },
+        rain : { path: currentRain, value: null, unit: 'mm/h', key: '0:rain.1h', description: 'Precipitation, where available' },
+        snow : { path: currentSnow, value: null, unit: 'mm/h', key: '0:snow.1h', description: 'Precipitation, where available' },
         weather : {
             id: { path: currentWeather, value: null, unit: '', key: '0:weather.id', description: 'Weather condition id' },
             main: { path: currentMain, value: null, unit: 'string', key: '0:weather.main', description: 'Group of weather parameters (Rain, Snow etc.)' },
@@ -137,8 +137,8 @@ const latest = {
     precipitation: {
         simple: "rain",
         pop : { path: forecastPrecipProp, value: null, unit: 'ratio', key: 'pop', description: 'Probability of precipitation. Values vary between 0 and 1, where 0 is equal to 0%, 1 is equal to 100%' },
-        rain : { path: forecastPrecipRain, value: null, unit: 'mm/s', key: 'rain.1h', description: 'Precipitation, mm/h - where available' },
-        snow : { path: forecastPrecipSnow, value: null, unit: 'mm/s', key: 'snow.1h', description: 'Precipitation, mm/h - where available' },         
+        rain : { path: forecastPrecipRain, value: null, unit: 'mm/s', key: '0:rain.1h', description: 'Precipitation, mm/h - where available' },
+        snow : { path: forecastPrecipSnow, value: null, unit: 'mm/s', key: '0:snow.1h', description: 'Precipitation, mm/h - where available' },         
     },
     wind: {
         simple: null,
@@ -239,7 +239,7 @@ async function onPositionUpdate(value) {
                         {
                             let key = latest.current[o][sub].key
                             if (key.includes(':') && Array.isArray(response.data.current[key.split(':')[1].split('.')[0]]))
-                                {
+                                {   // all weather
                                     let lookup = response.data.current[key.split(':')[1].split('.')[0]][key.split(':')[0]]
                                     latest.current[o][sub].value = convert.toSignalK(latest.current[o][sub].unit, lookup[key.split('.')[1]])
                                 }
@@ -249,12 +249,17 @@ async function onPositionUpdate(value) {
                     else if (typeof latest.current[o]==='object' && !Array.isArray(latest.current[o]) && latest.current[o].hasOwnProperty('key')) {
                         let key = latest.current[o].key
                         if (key.includes(':') && Array.isArray(response.data.current[key.split(':')[1].split('.')[0]]))
-                            {
+                            {   // all weather
                                 let lookup = response.data.current[key.split(':')[1].split('.')[0]][key.split(':')[0]]
                                 latest.current[o].value = convert.toStationAltitude(latest.current[o].unit, lookup[key.split('.')[1]])                      
                             }
+                        else if (key.includes(':') && typeof response.data.current[key.split(':')[1].split('.')[0]]==='object')
+                            {   // precipitation, wind
+                                let lookup = response.data.current[key.split(':')[1].split('.')[0]]
+                                latest.current[o].value = convert.toSignalK(latest.current[o].unit, lookup[key.split(':')[1].split('.')[1]])
+                            }                                    
                         else if (o==='pressure' && response.data.current.hasOwnProperty(key))
-                            {                               
+                            {   // pressure                               
                                 latest.current[o].value = convert.toSignalK(latest.current[o].unit, response.data.current[key])
                                 if (latest.current[o].value)
                                     latest.current[o].value.value = convert.toSeaLevel(latest.current[o].value.value / 100, 
@@ -299,6 +304,11 @@ async function onPositionUpdate(value) {
                                             calc = Math.avg(...response.data.hourly.map(d => d[key.split(':')[1]]).slice(0, horizon.hours))
                                         latest[m][o].value = convert.toSignalK(latest[m][o].unit, calc)
                                     }
+                                else if (key.includes(':') && typeof response.data.hourly[offset][key.split(':')[1].split('.')[0]]==='object')
+                                    {
+                                        let lookup = response.data.hourly[offset][key.split(':')[1].split('.')[0]]
+                                        latest[m][o].value = convert.toSignalK(latest[m][o].unit, lookup[key.split(':')[1].split('.')[1]])
+                                    }                                    
                                 else if (o==='sealevel' && response.data.current.hasOwnProperty(key))
                                     {                               
                                         latest[m][o].value = convert.toSignalK(latest[m][o].unit, response.data.hourly[offset][key])
