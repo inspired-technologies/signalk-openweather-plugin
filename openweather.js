@@ -137,8 +137,8 @@ const latest = {
     precipitation: {
         simple: "rain",
         pop : { path: forecastPrecipProp, value: null, unit: 'ratio', key: 'pop', description: 'Probability of precipitation. Values vary between 0 and 1, where 0 is equal to 0%, 1 is equal to 100%' },
-        rain : { path: forecastPrecipRain, value: null, unit: 'mm/s', key: '0:rain.1h', description: 'Precipitation, mm/h - where available' },
-        snow : { path: forecastPrecipSnow, value: null, unit: 'mm/s', key: '0:snow.1h', description: 'Precipitation, mm/h - where available' },         
+        rain : { path: forecastPrecipRain, value: null, unit: 'mm/h', key: '0:rain.1h', description: 'Precipitation, mm/h - where available' },
+        snow : { path: forecastPrecipSnow, value: null, unit: 'mm/h', key: '0:snow.1h', description: 'Precipitation, mm/h - where available' },         
     },
     wind: {
         simple: null,
