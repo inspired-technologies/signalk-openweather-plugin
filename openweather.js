@@ -71,6 +71,8 @@ const forecastPressure = pathPrefix+'pressure';
 const forecastTemperature = pathPrefix+'temperature';
 const forecastTempMin = pathPrefix+'temperature.minimum';
 const forecastTempMax = pathPrefix+'temperature.maximum';
+const forecastTodayMin = pathPrefix+'today.temperature.minimum';
+const forecastTodayMax = pathPrefix+'today.temperature.maximum';
 const forecastFeelsLike = pathPrefix+'temperature.feelslike';
 const forecastHumidity = pathPrefix+'relativeHumidity';
 const forecastPrecipProp = pathPrefix+'precipitation.probability';
@@ -99,6 +101,8 @@ const latest = {
         sunset : { path: currentSunset, value: null, unit: 'unixdate', key: 'sunset', description: 'Sunset time, Unix, UTC. For polar areas in midnight sun and polar night periods this parameter is not returned in the response' },
         temperature : { path: currentTemp, value: null, unit: 'K', key: 'temp', description: 'Current temperature' },
         feelslike : { path: currentFeelsLike, value: null, unit: 'K', key: 'feels_like', description: 'Current temperature, accounts for the human perception of weather.' },
+        todayMin : { path: forecastTodayMin, value: null, unit: 'K', key: 'today:min', description: 'Today\'s minimum temperature' },
+        todayMax : { path: forecastTodayMax, value: null, unit: 'K', key: 'today:max', description: 'Today\'s maximum temperature' },
         pressure : { path: currentPressure, value: null, unit: 'hPa', key: 'pressure', description: 'Current atmospheric pressure on the sea level' },        
         humidity : { path: currentHumidity, value: null, unit: 'ratio', key: 'humidity', description: 'Current relative humidity' },
         dewpoint : { path: currentDewPoint, value: null, unit: 'K', key: 'dew_point', description: 'Current atmospheric temperature (varying according to pressure and humidity) below which water droplets begin to condense and dew can form' },
@@ -228,6 +232,7 @@ async function onPositionUpdate(value) {
                 // update snap data
                 latest.position.lat = response.data.lat
                 latest.position.lon = response.data.lon
+                let newDay = latest.forecast.time === null || new Date(latest.forecast.time).getDate() != new Date((response.data.current.dt + (offset)*3600)*1000).getDate()
                 latest.forecast.time = response.data.hourly.length>0 && response.data.hourly.length>offset ? (response.data.current.dt + (offset)*3600)*1000 : null
                 latest.forecast.tz = response.data.timezone
                 log(`Forecast received for ${new Date(latest.forecast.time).toString()}`)
@@ -248,7 +253,16 @@ async function onPositionUpdate(value) {
                         }
                     else if (typeof latest.current[o]==='object' && !Array.isArray(latest.current[o]) && latest.current[o].hasOwnProperty('key')) {
                         let key = latest.current[o].key
-                        if (key.includes(':') && Array.isArray(response.data.current[key.split(':')[1].split('.')[0]]))
+                        if (key.includes('today:'))
+                            {   // Today's min & max Temp
+                                if (latest.current[o].value === null || newDay)
+                                {
+                                    let min = Math.min(...response.data.hourly.slice(0,24).map(t => t.temp))
+                                    let max = Math.max(...response.data.hourly.slice(0,24).map(t => t.temp))
+                                    latest.current[o].value = convert.toSignalK(latest.current[o].unit, key.split(':')[1] === 'min' ? min : key.split(':')[1] === 'max' ? max : null)    
+                                }
+                            }
+                        else if (key.includes(':') && Array.isArray(response.data.current[key.split(':')[1].split('.')[0]]))
                             {   // all weather
                                 let lookup = response.data.current[key.split(':')[1].split('.')[0]][key.split(':')[0]]
                                 latest.current[o].value = convert.toStationAltitude(latest.current[o].unit, lookup[key.split('.')[1]])                      
