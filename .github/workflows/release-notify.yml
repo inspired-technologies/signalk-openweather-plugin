@@ -1,0 +1,19 @@
+name: Push teams notification
+
+on:
+  push:
+    branches: [ main ]
+  release: {}
+
+jobs:
+  check:
+    name: Notify Service Channel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Microsoft Teams Notification
+        uses: skitionek/notify-microsoft-teams@master
+        if: always()
+        with:
+          webhook_url: ${{ secrets.MSTEAMS_WEBHOOK }}
+          job: ${{ toJson(job) }}
