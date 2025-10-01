@@ -226,9 +226,9 @@ async function onPositionUpdate(value) {
         const response = axios(config)
             .then( (response) => {
                 if (latest.update===null || latest.weather.id.value===null)
-                    pluginStatus(`Started - Forecast Position ${response.data.lat},${response.data.lon}`);
+                    pluginStatus(`Started - Forecast Position ${response.data.lat} , ${response.data.lon}`);
                 else
-                    pluginStatus(`Forecast Position ${response.data.lat},${response.data.lon}`);
+                    pluginStatus(`Forecast Position ${response.data.lat} , ${response.data.lon}`);
                 let result = {}
                 
                 // update snap data
