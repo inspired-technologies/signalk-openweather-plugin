@@ -36,7 +36,7 @@ const navigationPosition = 'navigation.position';
 const navigationElevation = 'navigation.gnss.antennaAltitude';
 const oneMinute = 60*1000;
 const oneHour = 60*60*1000;
-const refreshRate = oneMinute*5;
+const refreshRate = oneHour;
 
 const subscriptions = [
     { path: navigationPosition, period: refreshRate, policy: "instant", minPeriod: refreshRate },
