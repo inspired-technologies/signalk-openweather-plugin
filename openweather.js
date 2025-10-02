@@ -36,7 +36,7 @@ const navigationPosition = 'navigation.position';
 const navigationElevation = 'navigation.gnss.antennaAltitude';
 const oneMinute = 60*1000;
 const oneHour = 60*60*1000;
-const refreshRate = oneHour;
+const refreshRate = oneMinute*5;
 
 const subscriptions = [
     { path: navigationPosition, period: refreshRate, policy: "instant", minPeriod: refreshRate },
@@ -541,10 +541,11 @@ module.exports = {
         if (refreshRate) {
             timerId = setInterval(() => {
                 if (!lastUpdateWithin(refreshRate)) {
-                    onPositionUpdate(getVal(navigationPosition).value);
+                    let pos = getVal(navigationPosition)
+                    onPositionUpdate(pos ? pos.value : { latitude: latest.position.lat, longitude: latest.position.lon })
                 }
             }, refreshRate)
-            log(`Interval started, refresh rate ${refreshRate/60/1000}min`);
+            log(`Interval started, refresh rate ${refreshRate/60/1000}min`)
         }
         return timerId;
     }
