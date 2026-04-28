@@ -1,7 +1,13 @@
 /*
-    conversions-module - specifically for SignalK & Barograph
-    reqired by OpenWeather Map | Squid Sailing Forecasting modules
+    conversions-module - specifically for SignalK Barograph, Dashboard & Logbook Apps
+    also required by OpenWeather Map | Squid Sailing Forecasting modules
 */
+const crypto = require('crypto');
+
+// Hash function for caching
+function hashString(str) {
+    return crypto.createHash('md5').update(str).digest('hex');
+}
 
 // Beaufort Wind Scale
 const BEAUFORT_SCALE = [
@@ -146,6 +152,7 @@ function toSignalK(unit, value) {
     return { value: value, units: skUnit }
 }
 
+let cachedFunctions = {}
 // converts to Target as specified
 function toTarget(skunit, value, target, precision) {
     let unit
@@ -195,11 +202,11 @@ function toTarget(skunit, value, target, precision) {
                 } else if (target==='kn') {
                     value = value * 1.943844
                     unit = target
-                } else if (target==='km') {
+                } else if (target==='kmh') {
                     value = value * 3.6
                     unit = target
-                } else if (target==='kn') {
-                    value = value * 1.943844
+                } else if (target==='mh') {
+                    value = value * 2.23693629
                     unit = target
                 } else if (target==='Bft') {
                     value = toBeaufort(value)
@@ -236,13 +243,16 @@ function toTarget(skunit, value, target, precision) {
                 }
                 break;
             case 'dt':
-                if (target === 'ms' || target === 'unixdate' ) {
+                if (target === 'influx' || target === 'time' ) { // influx standard
+                    value = (new Date(value).getTime())*1000*1000
+                    unit ='ns'
+                } else if (target === 'ms' || target === 'unixdate' ) {
                     value = (new Date(value).getTime())
                     unit ='ms'
                 } else if (target === 's' ) {
                     value = (new Date(value).getTime())/1000
                     unit ='s'
-                } 
+                }
                 break;
             case 's':
                 if (target === 'ms' ) {
@@ -268,6 +278,19 @@ function toTarget(skunit, value, target, precision) {
                     value = value[target].hasOwnProperty('value') ? value[target].value : value[target]
                 }                 
                 break;
+            case '{fct}':
+                const hash = hashString(target)
+                let res = null
+                if (cachedFunctions.hasOwnProperty(hash))
+                    res = cachedFunctions[hash](value)
+                else {
+                    const fct = new Function('o', `return ${target}`)
+                    res = fct(value)
+                    cachedFunctions[hash] = fct
+                }
+                value = res ? res : null
+                unit = ''
+                break;             
             default:
                 unit = skunit
                 break;
@@ -287,12 +310,17 @@ function toDegreesMinutesAndSeconds(coordinate) {
     return degrees + "\°" + minutes + "\'" + seconds +"\"";
   }
 
+function toDMS (lat, lng) {
+  return `${toDegreesMinutesAndSeconds(lat)}${lat >= 0 ? "N" : "S"} : ${toDegreesMinutesAndSeconds(lng)}${lng >= 0 ? "E" : "W"}`;
+}
+
 module.exports = {
     toBeaufort,
     fromBeaufort,
     toSeaLevel,
     toStationAltitude,
     toDegreesMinutesAndSeconds,
+    toDMS,
     toSignalK,
     toTarget
 }
