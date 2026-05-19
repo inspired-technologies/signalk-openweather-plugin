@@ -1,7 +1,7 @@
 {
   "name": "openweather-signalk",
-  "version": "1.1.5",
-  "description": "SignalK plugin to provide data from OpenWeather Service",
+  "version": "1.1.6",
+  "description": "SignalK plugin publishing current & forecast from OpenWeather Service",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
