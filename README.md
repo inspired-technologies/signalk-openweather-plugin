@@ -1,4 +1,3 @@
-
 # signalk-openweather-plugin
 
 SignalK Plugin to inject forecast data from __[OpenWeather](https://openweathermap.org/)__ public weather service
@@ -90,4 +89,6 @@ The plugin adheres to meta-data units according to the SignalK definition. The o
 - v0.7: Refactored (PR#6): Interval-based data push
 - v0.8: Package updates
 - v0.9: Re-factored due to [#9](https://github.com/inspired-technologies/signalk-openweather-plugin/issues/9) OWM v2.5 depcreated.
+- v0.9: Re-factored due to [#9](https://github.com/inspired-technologies/signalk-openweather-plugin/issues/9) OWM v2.5 depcreated. 
 - v1.0: Minor fixes, released to v1
+- v1.1: Today's Min & Max temp value published
