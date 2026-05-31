@@ -5,7 +5,7 @@ SignalK Plugin to inject forecast data from __[OpenWeather](https://openweatherm
 ## Install & Use
 
 *Note: To use this plugin you need to request an apikey, ie. APPID on http://openweathermap.org/appid and start!*
-*Please also note* that the plugin uses __[V3.0 OneCall](https://home.openweathermap.org/subscriptions/unauth_subscribe/onecall_30/base)__ which requires payment information within your OWM subscription but is stated as **FREE** for at least 1000 API calls per day. Furthermore an individual limit can be set to not exceed the number of calls per day.
+*Please also note* that the plugin uses __[V3.0 OneCall](https://home.openweathermap.org/subscriptions/unauth_subscribe/onecall_30/base)__ which requires payment information within your OWM subscription but is stated as **FREE** for at least 1000 API calls per day. Furthermore an individual limit can be set to not exceed the number of calls per day. Note that OWM's FAQ states that it may take as much as 2 hours before your apikey is activated.
 
 Install the plugin through the SignalK plugin interface. After installation you may want to 'Activate' it through the SignalK Plugin Config interface and enter your pre-requested API key.
 
