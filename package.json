@@ -1,6 +1,6 @@
 {
   "name": "openweather-signalk",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "description": "SignalK plugin publishing current & forecast from OpenWeather Service",
   "main": "index.js",
   "scripts": {
