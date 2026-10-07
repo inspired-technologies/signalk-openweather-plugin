@@ -3,7 +3,8 @@ SignalK Plugin to inject forecast data from __[OpenWeather](https://openweatherm
 
 ## Install & Use
 *Note: To use this plugin you need to request an apikey, ie. APPID on http://openweathermap.org/appid and start!*
-*Please also note* that the plugin uses __[V3.0 OneCall](https://home.openweathermap.org/subscriptions/unauth_subscribe/onecall_30/base)__ which requires payment information within your OWM subscription but is stated as **FREE** for at least 1000 API calls per day. Furthermore an individual limit can be set to not exceed the number of calls per day.
+
+*Please also note* that the plugin uses __[V3.0 OneCall](https://home.openweathermap.org/subscriptions/unauth_subscribe/onecall_30/base)__ which requires payment information within your OWM subscription but is stated as **FREE** for at least 1000 API calls per day. Furthermore an individual limit can be set to not exceed the number of calls per day. OWM's FAQ states that it may take as much as 2 hours before your apikey is activated.
 
 Install the plugin through the SignalK plugin interface. After installation you may want to 'Activate' it through the SignalK Plugin Config interface and enter your pre-requested API key.
 
@@ -77,12 +78,5 @@ or the full OWM output computed as
   
 The plugin adheres to meta-data units according to the SignalK definition. The off-set for forecast data can be configured between 1 and 48 hours. The horizon parameter allows for adjusting the computation of aggregated measure likewise temperature minimum / maximum.
 
-### Release Notes
-- v0.5: Comply with the SignalK spec by providing timestamps according to RFC3339.
-- v0.6: Support value timeouts according to the SignalK spec.
-- v0.7: Feature (PR#5): Option to publish 0h offset forecast as current underneith `environment.outside.*`.
-- v0.7: Refactored (PR#6): Interval-based data push
-- v0.8: Package updates
-- v0.9: Re-factored due to [#9](https://github.com/inspired-technologies/signalk-openweather-plugin/issues/9) OWM v2.5 depcreated. 
-- v1.0: Release v1
-- v1.1: Today's Min & Max temp value published
+## Release Notes
+See [Changelog](CHANGELOG.md).
