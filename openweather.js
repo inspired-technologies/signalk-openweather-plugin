@@ -14,10 +14,10 @@
 
 const axios = require ('axios')
 const convert = require ('./skunits')
+const log = require('debug')('openweather-signalk')
 const ONECALLAPI = 'https://api.openweathermap.org/data/3.0/onecall'
 const DEFAULTTYPE = 'simple'
 const CURRENTPATH = 'outside'
-let log
 // let logwarning = true
 let sendVal
 let pluginStatus
@@ -531,11 +531,10 @@ module.exports = {
     preLoad,
     onDeltasUpdate,
 
-    init: function(msgHandler, getVal, stateHandlers, logHandler) {
+    init: function(msgHandler, getVal, stateHandlers) {
         sendVal = msgHandler
         pluginStatus = stateHandlers.status
         pluginError = stateHandlers.error
-        log = logHandler     
         latest.update = null
         let timerId = null
         if (refreshRate) {
