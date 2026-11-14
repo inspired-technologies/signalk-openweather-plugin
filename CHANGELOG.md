@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.2]
+### Fix
+- Restart no longer publishes the meta data of every path twice.
+- Current pressure (`environment.outside.pressure`) is adjusted to station elevation like the forecast - it was converted to sea level a second time.
+- Path `environment.outside.weather.visbility` renamed to `environment.outside.weather.visibility` - please update dashboards using the old path.
+- Request timeout of 20 s; an unreachable service (offline at sea) is reported once and recovers with the next refresh.
+- Logging via the `openweather-signalk` debug log only.
+- skunits update: missing values stay missing instead of 0, Beaufort conversions, additional units.
+
 ## [1.2]
 - Test added
 - Package updates
