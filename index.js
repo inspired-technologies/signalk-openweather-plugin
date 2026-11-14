@@ -13,7 +13,7 @@
 */
 
 'use strict'
-const debug = require("debug")("signalk:openweather-signalk")
+const log = require('debug')('openweather-signalk')
 const ow = require('./openweather')
 
 module.exports = function (app) {
@@ -27,9 +27,9 @@ module.exports = function (app) {
     let timerId = null;
     plugin.start = function (options, restartPlugin) {
 
-        app.debug('Plugin starting ...');
+        log('Plugin starting ...');
         app.setPluginStatus('Initializing');
-        timerId = ow.init(sendDelta, app.getSelfPath, { status: app.setPluginStatus, error: app.setPluginError }, app.debug);
+        timerId = ow.init(sendDelta, app.getSelfPath, { status: app.setPluginStatus, error: app.setPluginError });
 
         let localSubscription = {
             context: 'vessels.self',
@@ -49,15 +49,15 @@ module.exports = function (app) {
             { horizon: options["horizon"] || 23, offset: options["offset"] || 1, current: options["current"] || false, partial: options["partial"] || undefined } )
         if (meta.length>0)
             sendMeta(meta)
-        app.debug('Plugin initialized.');
+        log('Plugin initialized.');
     };
 
     plugin.stop = function () {
-        app.debug('Plugin stopping...');
+        log('Plugin stopping...');
         unsubscribes.forEach(f => f());
         if (timerId!==null) clearInterval(timerId);
         unsubscribes = [];
-        app.debug('Plugin stopped.');
+        log('Plugin stopped.');
     };
 
     plugin.schema = {

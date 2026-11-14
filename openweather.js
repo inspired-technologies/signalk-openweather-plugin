@@ -18,10 +18,13 @@ const log = require('debug')('openweather-signalk')
 const ONECALLAPI = 'https://api.openweathermap.org/data/3.0/onecall'
 const DEFAULTTYPE = 'simple'
 const CURRENTPATH = 'outside'
+const REQUESTTIMEOUT = 20*1000
 // let logwarning = true
 let sendVal
 let pluginStatus
 let pluginError
+let publishType = DEFAULTTYPE
+let unreachable = null    // reason of the last failed request - reported once, not every hour
 let apiKey = ''
 let variables = []
 let output = []
@@ -55,7 +58,7 @@ const currentHumidity = pathCurrent+'relativeHumidity';
 const currentDewPoint = pathCurrent+'temperature.dewpoint';
 const currentClouds = pathCurrent+'weather.clouds';
 const currentUVI = pathCurrent+'weather.uvindex';
-const currentVisibility = pathCurrent+'weather.visbility';
+const currentVisibility = pathCurrent+'weather.visibility';
 const currentWindSpeed = pathCurrent+'wind.speed';
 const currentWindDir = pathCurrent+'wind.direction';
 const currentWindGust = pathCurrent+'wind.gust';
@@ -103,7 +106,7 @@ const latest = {
         feelslike : { path: currentFeelsLike, value: null, unit: 'K', key: 'feels_like', description: 'Current temperature, accounts for the human perception of weather.' },
         todayMin : { path: forecastTodayMin, value: null, unit: 'K', key: 'today:min', description: 'Today\'s minimum temperature' },
         todayMax : { path: forecastTodayMax, value: null, unit: 'K', key: 'today:max', description: 'Today\'s maximum temperature' },
-        pressure : { path: currentPressure, value: null, unit: 'hPa', key: 'pressure', description: 'Current atmospheric pressure on the sea level' },        
+        pressure : { path: currentPressure, value: null, unit: 'hPa', key: 'pressure', description: 'Current atmospheric pressure at station elevation (sea level unless navigation.gnss.antennaAltitude is present)' },
         humidity : { path: currentHumidity, value: null, unit: 'ratio', key: 'humidity', description: 'Current relative humidity' },
         dewpoint : { path: currentDewPoint, value: null, unit: 'K', key: 'dew_point', description: 'Current atmospheric temperature (varying according to pressure and humidity) below which water droplets begin to condense and dew can form' },
         clouds : { path: currentClouds, value: null, unit: 'ratio', key: 'clouds', description: 'Current cloudiness' },
@@ -125,7 +128,7 @@ const latest = {
     },
     pressure: {
         simple: "sealevel",
-        sealevel : { path: forecastPressure, value: null, unit: 'hPa', key: 'pressure', description: 'Atmospheric pressure on the sea level' },
+        sealevel : { path: forecastPressure, value: null, unit: 'hPa', key: 'pressure', description: 'Atmospheric pressure at station elevation (sea level unless navigation.gnss.antennaAltitude is present)' },
     },
     temperature: {
         simple: "outside",
@@ -191,10 +194,10 @@ function onDeltasUpdate(deltas) {
     }
 
     deltas.updates.forEach(u => {
-        u.values.forEach((value) => {
+        (u.values || []).forEach((value) => {
             let onDeltaUpdated = subscriptionHandler.find((d) => d.path === value.path);
 
-            if (onDeltaUpdated !== null) {
+            if (onDeltaUpdated) {
                 onDeltaUpdated.handle(value.value);
             }
         });
@@ -202,7 +205,10 @@ function onDeltasUpdate(deltas) {
 }
 
 async function onPositionUpdate(value) {
-    if (value == null) log("PositionUpdate: Cannot add null value");
+    if (value == null) {
+        log("PositionUpdate: Cannot add null value");
+        return
+    }
 
     latest.position.lat = value.latitude;
     latest.position.lon = value.longitude;
@@ -218,13 +224,18 @@ async function onPositionUpdate(value) {
         let config = {
             method: 'get',
             url: ONECALLAPI+`?lat=${latest.position.lat}&lon=${latest.position.lon}&exclude=${excludes}&appid=${apiKey}`,
-            headers: { 
+            timeout: REQUESTTIMEOUT,    // no default in axios - a stalled connection would block every later update
+            headers: {
             'Content-Type': 'application/json',
             }
         };
-            
+
         const response = axios(config)
             .then( (response) => {
+                if (unreachable!==null) {
+                    log(`OpenWeather reachable again (${unreachable})`)
+                    unreachable = null
+                }
                 if (latest.update===null || latest.weather.id.value===null)
                     pluginStatus(`Started - Forecast Position ${response.data.lat} , ${response.data.lon}`);
                 else
@@ -267,7 +278,7 @@ async function onPositionUpdate(value) {
                         else if (key.includes(':') && Array.isArray(response.data.current[key.split(':')[1].split('.')[0]]))
                             {   // all weather
                                 let lookup = response.data.current[key.split(':')[1].split('.')[0]][key.split(':')[0]]
-                                latest.current[o].value = convert.toStationAltitude(latest.current[o].unit, lookup[key.split('.')[1]])                      
+                                latest.current[o].value = convert.toSignalK(latest.current[o].unit, lookup[key.split('.')[1]])
                             }
                         else if (key.includes(':') && typeof response.data.current[key.split(':')[1].split('.')[0]]==='object')
                             {   // precipitation, wind
@@ -275,11 +286,11 @@ async function onPositionUpdate(value) {
                                 latest.current[o].value = convert.toSignalK(latest.current[o].unit, lookup[key.split(':')[1].split('.')[1]])
                             }                                    
                         else if (o==='pressure' && response.data.current.hasOwnProperty(key))
-                            {   // pressure                               
+                            {   // pressure - OpenWeather reports sea level, adjusted to station elevation as for the forecast
                                 latest.current[o].value = convert.toSignalK(latest.current[o].unit, response.data.current[key])
-                                if (latest.current[o].value)
-                                    latest.current[o].value.value = convert.toSeaLevel(latest.current[o].value.value / 100, 
-                                        latest.altitude.elevation, latest.current.temperature.value.value || 273.15) * 100
+                                if (latest.current[o].value && latest.current[o].value.value!==null)
+                                    latest.current[o].value.value = convert.toStationAltitude(latest.current[o].value.value / 100,
+                                        latest.altitude.elevation, (latest.current.temperature.value && latest.current.temperature.value.value) || 273.15) * 100
                             }
                         else if (response.data.current.hasOwnProperty(key))
                             latest.current[o].value = convert.toSignalK(latest.current[o].unit, response.data.current[key])                            
@@ -330,7 +341,8 @@ async function onPositionUpdate(value) {
                                         latest[m][o].value = convert.toSignalK(latest[m][o].unit, response.data.hourly[offset][key])
                                         if (latest[m][o].value)
                                             latest[m][o].value.value = convert.toStationAltitude(latest[m][o].value.value / 100, latest.altitude.elevation, 
-                                                latest.temperature.outside.value!==null ? latest.temperature.outside.value.value : latest.current.temperature.value.value || 273.15) * 100
+                                                (latest.temperature.outside.value && latest.temperature.outside.value.value) ||
+                                            (latest.current.temperature.value && latest.current.temperature.value.value) || 273.15) * 100
                                     }
                                 else if (response.data.hourly[offset].hasOwnProperty(key))
                                     latest[m][o].value = convert.toSignalK(latest[m][o].unit, response.data.hourly[offset][key])
@@ -364,7 +376,7 @@ async function onPositionUpdate(value) {
                     let res = o.path.includes(CURRENTPATH) ? o.path.replace('environment.', '').split('.') : 
                               o.path.replace('environment.forecast.', '').split('.')
                     let val = result
-                    for (i=0; i<res.length; i++)
+                    for (let i=0; i<res.length; i++)
                         if (i===res.length-1)
                             val[res[i]] = o.val.value
                         else if (!val.hasOwnProperty(res[i]))
@@ -383,12 +395,18 @@ async function onPositionUpdate(value) {
                 latest.update = Date.now();
             })
             .catch( (error) => {
-                if (error.hasOwnProperty('code') && error.code==="ERR_BAD_REQUEST" && error.response.status===401) {
+                if (error.hasOwnProperty('code') && error.code==="ERR_BAD_REQUEST" && error.response && error.response.status===401) {
                     log(`Unauthorized: ${error.message.replace('Please note that using One Call','OpenWeather')}`)
                     pluginError('Error: OpenWeather API unauthorized')
+                } else if (!error.response && error.code) {
+                    // offline (e.g. at sea): report once, retry with the next hourly refresh
+                    if (unreachable===null)
+                        pluginError(`OpenWeather unreachable: ${error.code}`)
+                    unreachable = `${error.code} since ${new Date().toISOString()}`
+                    log(`OpenWeather unreachable: ${error.code} - ${error.message}`)
                 } else {
-                    log(error);
-                }   
+                    log(error.message || error);
+                }
             });
     }
 }
@@ -448,6 +466,9 @@ function preLoad(apikey, config, param) {
     } 
     else
         apiKey = apikey
+
+    // a restart must not add the paths a second time
+    output = []
 
     // configuration
     if (config && Array.isArray(config.split('-')) && config.split('-')[0]!=='')
